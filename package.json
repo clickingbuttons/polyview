@@ -1,0 +1,34 @@
+{
+  "name": "polyview",
+  "version": "0.0.1",
+  "description": "Polygon data in Tradingview",
+  "main": "index.js",
+  "scripts": {
+    "build": "node ./build/all.mjs",
+    "start": "node ./build/all.mjs --watch"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/clickingbuttons/polyview.git"
+  },
+  "keywords": [
+    "polygon",
+    "api",
+    "charting",
+    "tradingview"
+  ],
+  "author": "clickingbuttons",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/clickingbuttons/polyview/issues"
+  },
+  "homepage": "https://github.com/clickingbuttons/polyview#readme",
+  "devDependencies": {
+    "chokidar": "^3.5.3",
+    "create-serve": "^1.0.1",
+    "esbuild": "^0.15.9"
+  },
+  "dependencies": {
+    "@polygon.io/client-js": "^6.0.4"
+  }
+}

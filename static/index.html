@@ -1,0 +1,22 @@
+<!DOCTYPE HTML>
+<html>
+	<head>
+		<title>Polyview</title>
+		<!-- Fix for iOS Safari zooming bug -->
+		<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,minimum-scale=1.0">
+		<!-- Don't phone home -->
+		<meta http-equiv="Content-Security-Policy" content="default-src 'self' api.polygon.io;" />
+		<link rel="stylesheet" type="text/css" href="minireset.css" />
+	</head>
+
+	<body>
+		<form id="signin" hidden>
+			<label for="apiKey">Polygon API key</label>
+			<input type="text" id="apiKey"></input>
+			<input type="submit" value="Submit">
+			<div id="error"></div>
+		</form>
+		<div id="chart"></div>
+		<script type="text/javascript" src="entry.js"></script>
+	</body>
+</html>
