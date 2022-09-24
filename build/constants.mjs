@@ -6,5 +6,5 @@ export function getTime() {
 	return `${hours}:${minutes}:${seconds}`;
 }
 export const outdir = 'dist';
-export const isProd = process.env.NODE_ENV == 'production';
 export const isWatch = process.argv.includes('--watch');
+export const isProd = !isWatch;

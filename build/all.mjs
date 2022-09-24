@@ -9,7 +9,13 @@ if (isWatch) {
     root: outdir,
     live: true
 	});
-	htmlSync(isWatch);
-	build(isWatch);
 }
+build(isWatch)
+	.then(res => res.metafile)
+	.then(metafile => {
+		const outJS = Object.keys(metafile.outputs)
+			.filter(k => k.endsWith('.js'))
+			.map(k => k.replace(outdir + '/', ''));
+		htmlSync(outJS, isWatch);
+	});
 

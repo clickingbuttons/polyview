@@ -7,6 +7,7 @@ export async function build(isWatch) {
 		.build({
 			bundle: true,
 			entryPoints: ['src/entry.ts'],
+			entryNames: `[dir]/[name]${isProd ? '.[hash]' : ''}`,
 			define: {
 				'IS_PROD': JSON.stringify(isProd),
 			},
