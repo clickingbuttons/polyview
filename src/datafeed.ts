@@ -159,14 +159,18 @@ export class Datafeed implements tv.IExternalDatafeed, tv.IDatafeedChartApi {
 			onResult([], { noData: true });
 			return;
 		}
-		//console.log(resolution, multiplier, timespan, new Date(from), new Date(to))
+		console.log(resolution, multiplier, timespan, periodParams.countBack, new Date(from), new Date(to))
 		this.rest.stocks.aggregates(
 			symbolInfo.ticker,
 			multiplier,
 			timespan,
 			String(from),
 			String(to),
-			{ limit: 5000 },
+			{
+				limit: periodParams.countBack + 100,
+				sort: 'desc',
+				adjusted: 'true',
+			},
 		)
 			.then(res => {
 				if (!res.results) {
@@ -180,7 +184,7 @@ export class Datafeed implements tv.IExternalDatafeed, tv.IDatafeedChartApi {
 						low: t.l, 
 						close: t.c, 
 						volume: t.v,
-					} as tv.Bar));
+					} as tv.Bar)).reverse();
 				}
 			})
 			.then(bars => {

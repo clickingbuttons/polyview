@@ -6,7 +6,7 @@ function initChart(apiKey: string) {
 	const isDarkMode = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
 
 	new widget({
-		// debug: true,
+		debug: true,
 		fullscreen: true,
 		symbol: 'AAPL',
 		interval: '1' as ResolutionString,
