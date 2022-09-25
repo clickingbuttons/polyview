@@ -102,9 +102,9 @@ export class Datafeed implements tv.IExternalDatafeed, tv.IDatafeedChartApi {
 				session: Datafeed.getSession(res.market as MarketType),
 				has_daily: true,
 				has_intraday: true,
-				has_ticks: true,
+				has_ticks: false,
 				has_weekly_and_monthly: true,
-				has_empty_bars: true,
+				has_empty_bars: false,
 				has_seconds: false,
 				visible_plots_set: 'ohlcv',
 				supported_resolutions: Datafeed.resolutions,
@@ -114,16 +114,19 @@ export class Datafeed implements tv.IExternalDatafeed, tv.IDatafeedChartApi {
 			.catch(err => onError(err));
 	}
 
-	getBars(symbolInfo: tv.LibrarySymbolInfo, resolution: tv.ResolutionString, periodParams: tv.PeriodParams, onResult: tv.HistoryCallback, onError: tv.ErrorCallback): void {
-		//console.log('getBars', new Date(periodParams.from * 1000), new Date(periodParams.to * 1000));
-		const lastChar = resolution[resolution.length - 1];
+	static getPeriod(resolution: tv.ResolutionString): { multiplier: number, timespan: string } {
 		let timespan = 'minute';
 		let multiplier = 1;
+		if (resolution == '60') {
+			resolution = '1H' as tv.ResolutionString;
+		} else if (resolution == '120') {
+			resolution = '2H' as tv.ResolutionString;
+		}
+		const lastChar = resolution[resolution.length - 1];
 		if (!(lastChar >= '0' && lastChar <= '9')) {
 			multiplier = parseInt(resolution.substring(0, resolution.length - 1));
 			if (Number.isNaN(multiplier)) {
-				onError('invalid resolution ' + resolution);
-				return;
+				return { timespan: '', multiplier: 0 };
 			}
 			switch (lastChar) {
 				case 'H':
@@ -144,20 +147,26 @@ export class Datafeed implements tv.IExternalDatafeed, tv.IDatafeedChartApi {
 			}
 		}
 
-		let noData = false;
+		return { timespan, multiplier };
+	}
+
+	getBars(symbolInfo: tv.LibrarySymbolInfo, resolution: tv.ResolutionString, periodParams: tv.PeriodParams, onResult: tv.HistoryCallback, onError: tv.ErrorCallback): void {
+		//console.log('getBars', new Date(periodParams.from * 1000), new Date(periodParams.to * 1000));
+		const { multiplier, timespan } = Datafeed.getPeriod(resolution);
 		let from = periodParams.from * 1000;
 		let to = periodParams.to * 1000;
 		if (to < Datafeed.startOfData) {
-			noData = true;
+			onResult([], { noData: true });
+			return;
 		}
-
+		//console.log(resolution, multiplier, timespan, new Date(from), new Date(to))
 		this.rest.stocks.aggregates(
 			symbolInfo.ticker,
 			multiplier,
 			timespan,
 			String(from),
 			String(to),
-			{ limit: 50000 },
+			{ limit: 5000 },
 		)
 			.then(res => {
 				if (!res.results) {
@@ -176,7 +185,7 @@ export class Datafeed implements tv.IExternalDatafeed, tv.IDatafeedChartApi {
 			})
 			.then(bars => {
 				//console.log('onResult', bars.length);
-				onResult(bars, { noData: noData });
+				onResult(bars);
 			})
 			.catch(err => onError(err));
 	}

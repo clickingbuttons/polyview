@@ -1,12 +1,12 @@
 import { getCookie, setCookie } from './cookies';
-import { version, widget, ResolutionString } from '../static/tradingview';
+import { widget, ResolutionString } from '../static/tradingview';
 import { Datafeed, isValidAPIKey } from './datafeed';
 
 function initChart(apiKey: string) {
 	const isDarkMode = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
 
 	new widget({
-		//debug: true,
+		// debug: true,
 		fullscreen: true,
 		symbol: 'AAPL',
 		interval: '1' as ResolutionString,
@@ -22,7 +22,6 @@ function initChart(apiKey: string) {
 }
 
 async function main() {
-	console.log('tradingview version', version());
 	let apiKey = getCookie('POLY_API_KEY');
 
 	if (!await isValidAPIKey(apiKey)) {
