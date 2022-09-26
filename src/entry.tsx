@@ -22,7 +22,7 @@ function Main() {
 	return (
 		<>
 			{view == '' && <div>Checking API key</div>}
-			{view == 'signin' && <Settings apiKey={apiKey} setAPIKey={setAPIKey} />}
+			{view == 'signin' && <Signin apiKey={apiKey} setAPIKey={setAPIKey} />}
 			{view == 'chart' && <Chart apiKey={apiKey} />}
 		</>
 	);
