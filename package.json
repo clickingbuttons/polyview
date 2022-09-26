@@ -29,6 +29,8 @@
     "esbuild": "^0.15.9"
   },
   "dependencies": {
-    "@polygon.io/client-js": "^6.0.4"
+    "@polygon.io/client-js": "^6.0.4",
+    "lightweight-charts": "^3.8.0",
+    "preact": "^10.11.0"
   }
 }

@@ -6,7 +6,11 @@ export async function build(isWatch) {
 	return esbuild
 		.build({
 			bundle: true,
-			entryPoints: ['src/entry.ts'],
+			entryPoints: ['src/entry.tsx'],
+			jsxFactory: "h",
+			jsxFragment: "Fragment",
+			jsx: 'automatic',
+			jsxImportSource: 'preact',
 			entryNames: `[dir]/[name]${isProd ? '.[hash]' : ''}`,
 			define: {
 				'IS_PROD': JSON.stringify(isProd),

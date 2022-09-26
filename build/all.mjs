@@ -13,10 +13,15 @@ if (isWatch) {
 build(isWatch)
 	.then(res => res.metafile)
 	.then(metafile => {
-		const outJS = Object.keys(metafile.outputs)
-			.filter(k => k.endsWith('.js'))
-			.map(k => k.replace(outdir + '/', ''));
-		htmlSync(outJS, isWatch);
+		const outFiles = Object.keys(metafile.outputs)
+			.reduce((acc, cur) => {
+				const ext = cur.split('.').pop(); 
+				acc[ext] = acc[ext] || [];
+				acc[ext].push(cur.replace(outdir + '/', ''));
+
+				return acc;
+			}, {});
+		htmlSync(outFiles, isWatch);
 		update();
 	});
 

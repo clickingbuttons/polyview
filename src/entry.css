@@ -1,0 +1,15 @@
+html, body, #app {
+	height: 100%;
+	background: #2B2B43;
+	color: #D9D9D9;
+}
+
+#app {
+	display: flex;
+	flex-direction: column;
+	width: 100%;
+}
+
+a, a:visited, a:hover, a:active {
+  color: inherit;
+}
