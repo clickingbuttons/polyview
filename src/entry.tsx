@@ -17,7 +17,7 @@ function Main() {
 				setView('signin');
 			}
 		});
-	}, []);
+	}, [apiKey]);
 
 	return (
 		<>
