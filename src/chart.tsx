@@ -99,10 +99,6 @@ export function Chart({ apiKey }) {
 					type: 'volume',
 				},
 				priceScaleId: 'left',
-				scaleMargins: {
-					top: 0.8,
-					bottom: 0,
-				},
 			}));
 			setSeries(series);
 		}

@@ -32,7 +32,7 @@ export function Toolbar({
 				visible: true,
 				borderColor: 'rgba(197, 203, 206, 1)',
 				scaleMargins: {
-					top: 0.8,
+					top: 0.75,
 					bottom: 0
 				}
 			},
