@@ -1,17 +1,23 @@
 import { PriceScaleMode, DeepPartial, ChartOptions } from 'lightweight-charts';
 import { useState, useEffect } from 'preact/hooks';
 
-export function Toolbar({ loadData, setSettings, live, setLive, ticker, setTicker }) {
-	const [multiplier, setMultiplier] = useState(1);
-	const [timespan, setTimespan] = useState('minute');
-	const today = new Date();
-	const [to, setTo] = useState(today.toISOString().substring(0, 10));
-	const [from, setFrom] = useState(new Date(today.setDate(today.getDate() - 7)).toISOString().substring(0, 10));
-	const [percent, setPercent] = useState(false);
+export type Timespan = 'minute' | 'hour' | 'day' | 'week' | 'month' | 'quarter' | 'year';
+const timespans: Timespan[] = ['minute', 'hour', 'day', 'week', 'month', 'quarter', 'year'];
 
-	useEffect(() => {
-		loadData(ticker, multiplier, timespan, from, to);
-	}, [ticker, multiplier, timespan, from, to]);
+export function Toolbar({
+	setSettings,
+	live,
+	setLive,
+	ticker,
+	setTicker,
+	multiplier,
+	setMultiplier,
+	timespan,
+	setTimespan,
+	date,
+	setDate
+}) {
+	const [percent, setPercent] = useState(false);
 
 	useEffect(() => {
 		setSettings({
@@ -37,9 +43,12 @@ export function Toolbar({ loadData, setSettings, live, setLive, ticker, setTicke
 		<div id="toolbar">
 			<input value={ticker} onChange={ev => setTicker(ev.target.value)} />
 			<input value={multiplier} onChange={ev => setMultiplier(ev.target.value)} />
-			<input value={timespan} onChange={ev => setTimespan(ev.target.value)} />
-			<input value={from} onChange={ev => setFrom(ev.target.value)} />
-			<input value={to} onChange={ev => setTo(ev.target.value)} />
+			<select vlues={timespan} onChanges={ev => setTimespan(ev.target.value)}>
+				{timespans.map(v =>
+					<option value={v}>{v}</option>
+				)}
+			</select>
+			<input value={date} onChange={ev => setDate(ev.target.value)} />
 			<button onClick={() => setPercent(!percent)}>
 				{(percent) ? <b>%</b> : '%'}
 			</button>
