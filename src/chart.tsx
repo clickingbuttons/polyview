@@ -1,4 +1,4 @@
-import { CandlestickData, createChart, UTCTimestamp, Time, ChartOptions, DeepPartial, IChartApi, ISeriesApi } from 'lightweight-charts';
+import { CandlestickData, createChart, UTCTimestamp, ChartOptions, DeepPartial, IChartApi, ISeriesApi } from 'lightweight-charts';
 import { restClient, websocketClient } from '@polygon.io/client-js';
 import { useRef, useEffect, useState } from 'preact/hooks';
 import { Toolbar, Timespan } from './toolbar';

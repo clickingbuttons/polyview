@@ -43,7 +43,7 @@ export function Toolbar({
 		<div id="toolbar">
 			<input value={ticker} onChange={ev => setTicker(ev.target.value)} />
 			<input value={multiplier} onChange={ev => setMultiplier(ev.target.value)} />
-			<select vlues={timespan} onChanges={ev => setTimespan(ev.target.value)}>
+			<select vlues={timespan} onChange={ev => setTimespan(ev.target.value)}>
 				{timespans.map(v =>
 					<option value={v}>{v}</option>
 				)}
