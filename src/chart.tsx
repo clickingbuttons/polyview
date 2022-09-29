@@ -82,7 +82,7 @@ export function Chart({ apiKey }) {
 	const [series, setSeries] = useState([] as ISeriesApi<any>[]);
 
 	useEffect(() => {
-		setChart(createChart(div.current, {
+		const newChart = createChart(div.current, {
 			timeScale: {
 				timeVisible: true,
 				secondsVisible: false,
@@ -91,7 +91,8 @@ export function Chart({ apiKey }) {
 				locale: 'en',
 				dateFormat: 'yyyy-MM-dd',
 			},
-		}));
+		});
+		setChart(newChart);
 		function onResize() {
 			const ele = div.current as HTMLDivElement;
 			// Bit of a hack since we know only chart + toolbar are on page.
@@ -99,7 +100,7 @@ export function Chart({ apiKey }) {
 			// chart decides to keep its height larger than its flexbox parent.
 			const app = document.getElementById('app');
 			const toolbar = document.getElementById('toolbar');
-			chart.resize(ele.offsetWidth, app.offsetHeight - toolbar.offsetHeight, true);
+			newChart.resize(ele.offsetWidth, app.offsetHeight - toolbar.offsetHeight, true);
 		}
 		window.addEventListener('resize', onResize);
 		return () => window.removeEventListener('resize', onResize);
