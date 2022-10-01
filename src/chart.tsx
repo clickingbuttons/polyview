@@ -123,7 +123,7 @@ export function Chart({ apiKey }) {
 	const [timespan, setTimespan] = useState('minute' as Timespan);
 	const [date, setDate] = useState(toymd(new Date()));
 
-	function setStatus(text: string, color: string) {
+	function setStatus(text: string, color: string = 'white') {
 		if (chart) {
 			chart.applyOptions({
 				watermark: {
@@ -138,22 +138,22 @@ export function Chart({ apiKey }) {
 	useEffect(() => {
 		let isSubbed = true;
 		if (!ticker) {
-			setStatus('No ticker', 'white');
+			setStatus('No ticker');
 		}
 
 		setData([]);
-		setStatus(`Loading ${ticker}...`, 'white');
+		setStatus(`Loading ${ticker}...`);
 		loadData(rest, ticker, multiplier, timespan, date, false)
 			.then(candles => {
 				if (!isSubbed) {
 					return;
 				}
 				if (candles.length > 0) {
-					setStatus(ticker, 'rgba(100, 100, 100, 0.3)');
+					setStatus('');
 					setData(candles);
 					setFitContent(true);
 				} else {
-					setStatus(`No data for ${ticker}`, 'white');
+					setStatus(`No data for ${ticker}`);
 				}
 			});
 
@@ -217,7 +217,7 @@ export function Chart({ apiKey }) {
 			if (loadBackwards) {
 				epochMS = data[0].time as number * 1000 + getLocalOffsetMS() - timespanMS;
 				// console.log('loading more bars before', new Date(epochMS).toISOString());
-				setStatus(`Loading before ${new Date(epochMS).toISOString().substring(0, 10)}...`, 'white');
+				setStatus(`Loading before ${new Date(epochMS).toISOString().substring(0, 10)}...`);
 			} else {
 				// TODO: get axis to not snap to newest date on load (which forces more data
 				// to have to be loaded)
@@ -241,7 +241,7 @@ export function Chart({ apiKey }) {
 					} else {
 						setData([...data, ...newData]);
 					}
-					setStatus(ticker, 'rgba(100, 100, 100, 0.3)');
+					setStatus('');
 					chart.applyOptions({ handleScroll: true });
 				});
 		}
