@@ -1,0 +1,26 @@
+.select {
+	position: relative;
+	display: inline-block;
+	min-width: 420px;
+}
+
+.select > input {
+	width: 100%;
+}
+
+.select-items {
+	position: absolute;
+	top: 100%;
+	left: 0;
+	right: 0;
+	z-index: 99;
+	background: white;
+	color: black;
+	max-height: 500px;
+	overflow-y: auto;
+}
+
+.select-item {
+	width: 100%;
+	text-align: left;
+}

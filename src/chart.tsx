@@ -79,7 +79,7 @@ export function Chart({ apiKey }) {
 	const div = useRef();
 	const [chart, setChart] = useState(null as IChartApi);
 	const [options, setOptions] = useState({} as DeepPartial<ChartOptions>);
-	const [series, setSeries] = useState([] as ISeriesApi<any>[]);
+	let [series, setSeries] = useState([] as ISeriesApi<any>[]);
 
 	useEffect(() => {
 		const newChart = createChart(div.current, {
@@ -107,35 +107,67 @@ export function Chart({ apiKey }) {
 	}, []);
 
 	useEffect(() => {
-		if (!options || Object.keys(options).length === 0) {
+		if (!options || Object.keys(options).length === 0 || !chart) {
 			return;
 		}
 		chart.applyOptions(options);
-	}, [options]);
+	}, [options, chart]);
 
 	// data
 	const rest = useMemo(() => restClient(apiKey), [apiKey]);
 	const [data, setData] = useState([] as CandlestickData[]);
-	const [hasNewSeries, setHasNewSeries] = useState(false);
+	const [fitContent, setFitContent] = useState(false);
 	// data picker
 	const [ticker, setTicker] = useState('AAPL');
 	const [multiplier, setMultiplier] = useState(1);
 	const [timespan, setTimespan] = useState('minute' as Timespan);
 	const [date, setDate] = useState(toymd(new Date()));
 
+	function setStatus(text: string, color: string) {
+		if (chart) {
+			chart.applyOptions({
+				watermark: {
+					visible: true,
+					text: text,
+					color: color,
+				}
+			});
+		}
+	}
+
 	useEffect(() => {
-		series.forEach(s => chart.removeSeries(s));
-		setSeries([]);
+		let isSubbed = true;
+		if (!ticker) {
+			setStatus('No ticker', 'white');
+		}
+
+		setData([]);
+		setStatus(`Loading ${ticker}...`, 'white');
 		loadData(rest, ticker, multiplier, timespan, date, false)
 			.then(candles => {
-				setData(candles);
-				setHasNewSeries(true);
+				if (!isSubbed) {
+					return;
+				}
+				if (candles.length > 0) {
+					setStatus(ticker, 'rgba(100, 100, 100, 0.3)');
+					setData(candles);
+					setFitContent(true);
+				} else {
+					setStatus(`No data for ${ticker}`, 'white');
+				}
 			});
+
+		return () => isSubbed = false;
 	}, [ticker, multiplier, timespan, date]);
 
 	useEffect(() => {
-		if (data.length === 0) {
+		if (!chart) {
 			return;
+		}
+		if (data.length === 0) {
+			series.forEach(s => chart.removeSeries(s));
+			series = [];
+			setSeries([]);
 		}
 		if (series.length === 0) {
 			series.push(chart.addCandlestickSeries());
@@ -151,9 +183,9 @@ export function Chart({ apiKey }) {
 		}
 		series[0].setData(data);
 		series[1].setData(data);
-		if (hasNewSeries) {
+		if (fitContent) {
 			chart.timeScale().fitContent();
-			setHasNewSeries(false);
+			setFitContent(false);
 			setReachedEnd(false);
 		}
 	}, [data]);
@@ -185,6 +217,7 @@ export function Chart({ apiKey }) {
 			if (loadBackwards) {
 				epochMS = data[0].time as number * 1000 + getLocalOffsetMS() - timespanMS;
 				// console.log('loading more bars before', new Date(epochMS).toISOString());
+				setStatus(`Loading before ${new Date(epochMS).toISOString().substring(0, 10)}...`, 'white');
 			} else {
 				// TODO: get axis to not snap to newest date on load (which forces more data
 				// to have to be loaded)
@@ -193,6 +226,7 @@ export function Chart({ apiKey }) {
 				return;
 				//epochMS = data[data.length - 1].time as number * 1000 + getLocalOffsetMS() + timespanMS;
 				//console.log('need more bars after', new Date(epochMS).toISOString());
+				// setStatus(`Loading after ${new Date(epochMS).toISOString().substring(0, 10)}`, 'rgba(100, 100, 100, 0.3)');
 			}
 
 			loadData(rest, ticker, multiplier, timespan, epochMS, loadForwards)
@@ -207,6 +241,7 @@ export function Chart({ apiKey }) {
 					} else {
 						setData([...data, ...newData]);
 					}
+					setStatus(ticker, 'rgba(100, 100, 100, 0.3)');
 					chart.applyOptions({ handleScroll: true });
 				});
 		}
@@ -295,6 +330,7 @@ export function Chart({ apiKey }) {
 				setTimespan={setTimespan}
 				date={date}
 				setDate={setDate}
+				rest={rest}
 				/>
 			<div id="chart" ref={div} />
 		</>

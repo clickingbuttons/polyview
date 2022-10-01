@@ -1,5 +1,6 @@
 import { PriceScaleMode, DeepPartial, ChartOptions } from 'lightweight-charts';
 import { useState, useEffect } from 'preact/hooks';
+import { SymbolPicker } from './select';
 import './toolbar.css';
 
 export type Timespan = 'minute' | 'hour' | 'day' | 'week' | 'month' | 'quarter' | 'year';
@@ -49,7 +50,8 @@ export function Toolbar({
 	timespan,
 	setTimespan,
 	date,
-	setDate
+	setDate,
+	rest
 }) {
 	const [percent, setPercent] = useState(false);
 	const [dark, setDark] = useState(window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
@@ -77,8 +79,8 @@ export function Toolbar({
 
 	return (
 		<div id="toolbar">
-			<input value={ticker} onChange={ev => setTicker(ev.target.value)} />
-			<input value={multiplier} onChange={ev => setMultiplier(ev.target.value)} />
+			<SymbolPicker value={ticker} onChange={newTicker => setTicker(newTicker)} rest={rest} />
+			<input class="multiplier" min="1" onWheel={() => {}} type="number" value={multiplier} onChange={ev => setMultiplier(ev.target.value)} />
 			<select vlues={timespan} onChange={ev => setTimespan(ev.target.value)}>
 				{timespans.map(v =>
 					<option value={v}>{v}</option>

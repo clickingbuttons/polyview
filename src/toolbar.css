@@ -2,6 +2,10 @@
 	display: flex;
 }
 
+.multiplier {
+	width: 42px;
+}
+
 .toolbar-spacer {
 	flex-grow: 1;
 }
