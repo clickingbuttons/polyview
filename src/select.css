@@ -16,7 +16,7 @@
 	z-index: 99;
 	background: white;
 	color: black;
-	max-height: 500px;
+	max-height: calc(100vh - 100px);
 	overflow-y: auto;
 }
 
