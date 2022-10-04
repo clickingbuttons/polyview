@@ -1,3 +1,8 @@
 #chart {
 	flex-grow: 1;
+	position: relative;
+}
+
+.tv-lightweight-charts {
+	position: absolute;
 }

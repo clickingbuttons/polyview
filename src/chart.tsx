@@ -95,18 +95,20 @@ export function Chart({ apiKey }) {
 			},
 		});
 		setChart(newChart);
-		function onResize() {
-			const ele = div.current as HTMLDivElement;
-			// Bit of a hack since we know only chart + toolbar are on page.
-			// Not sure a better way to handle resizing from tall to short since the 
-			// chart decides to keep its height larger than its flexbox parent.
-			const app = document.getElementById('app');
-			const toolbar = document.getElementById('toolbar');
-			newChart.resize(ele.offsetWidth, app.offsetHeight - toolbar.offsetHeight, true);
-		}
+	}, []);
+
+	const onResize = useMemo(() => () => {
+		if (!chart || !div.current)
+			return;
+		const ele = div.current as HTMLDivElement;
+		chart.resize(ele.offsetWidth, ele.offsetHeight, true);
+		console.log('Size changed');
+	}, [chart, div]);
+
+	useEffect(() => {
 		window.addEventListener('resize', onResize);
 		return () => window.removeEventListener('resize', onResize);
-	}, []);
+	}, [onResize]);
 
 	useEffect(() => {
 		if (!options || Object.keys(options).length === 0 || !chart) {
@@ -122,8 +124,10 @@ export function Chart({ apiKey }) {
 	// data picker
 	const [ticker, setTicker] = useState('AAPL');
 	const [multiplier, setMultiplier] = useState(1);
-	const [timespan, setTimespan] = useState('minute' as Timespan);
+	const [timespan, setTimespan] = useState('day' as Timespan);
 	const [date, setDate] = useState(toymd(new Date()));
+	const [showDetails, setShowDetails] = useState(true);
+	useEffect(onResize, [showDetails]);
 
 	function setStatus(text: string, color: string = 'white') {
 		if (chart) {
@@ -334,12 +338,16 @@ export function Chart({ apiKey }) {
 					date={date}
 					setDate={setDate}
 					rest={rest}
+					showDetails={showDetails}
+					setShowDetails={setShowDetails}
 					/>
 				<div id="chart" ref={div} />
 			</SplitItem>
-			<SplitItem>
-				<TickerDetails rest={rest} ticker={ticker} />
-			</SplitItem>
+			{showDetails && 
+				<SplitItem>
+					<TickerDetails rest={rest} ticker={ticker} />
+				</SplitItem>
+			}
 		</Split>
 	);
 }

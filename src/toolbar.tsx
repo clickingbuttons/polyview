@@ -51,7 +51,9 @@ export function Toolbar({
 	setTimespan,
 	date,
 	setDate,
-	rest
+	rest,
+	showDetails,
+	setShowDetails
 }) {
 	const [percent, setPercent] = useState(false);
 	const [dark, setDark] = useState(window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
@@ -81,7 +83,7 @@ export function Toolbar({
 		<div id="toolbar">
 			<SymbolPicker value={ticker} onChange={newTicker => setTicker(newTicker)} rest={rest} />
 			<input class="multiplier" min="1" onWheel={() => {}} type="number" value={multiplier} onChange={ev => setMultiplier(ev.target.value)} />
-			<select vlues={timespan} onChange={ev => setTimespan(ev.target.value)}>
+			<select value={timespan} onChange={ev => setTimespan(ev.target.value)}>
 				{timespans.map(v =>
 					<option value={v}>{v}</option>
 				)}
@@ -98,6 +100,19 @@ export function Toolbar({
 			</button>
 			<button onClick={() => setDark(!dark)}>
 				{dark ? <b>D</b> : 'D'}
+			</button>
+			<button onClick={() => setShowDetails(!showDetails)}>
+				<svg width=".8rem" height=".8rem" viewBox="0 0 72 72">
+					<g id="color"/>
+					<g id="hair"/>
+					<g id="skin"/>
+					<g id="skin-shadow"/>
+					<g id="line">
+						<line x1="16" x2="56" y1="26" y2="26" fill="none" stroke="#000000" stroke-linecap="round" stroke-linejoin="round" stroke-miterlimit="10" stroke-width="2"/>
+						<line x1="16" x2="56" y1="36" y2="36" fill="none" stroke="#000000" stroke-linecap="round" stroke-linejoin="round" stroke-miterlimit="10" stroke-width="2"/>
+						<line x1="16" x2="56" y1="46" y2="46" fill="none" stroke="#000000" stroke-linecap="round" stroke-linejoin="round" stroke-miterlimit="10" stroke-width="2"/>
+					</g>
+				</svg>
 			</button>
 		</div>
 	);

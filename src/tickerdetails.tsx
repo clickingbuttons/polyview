@@ -40,7 +40,7 @@ export function TickerDetails({ rest, ticker }: TickerDetailsProps) {
 	console.log(details);
 
 	return (
-		<div class="tickerdetails">
+		<div id="tickerdetails">
 			<h2>{ticker}</h2>
 			<table>
 				<tr><td>Root ticker</td><td>{(details as any).ticker_root}</td></tr>
