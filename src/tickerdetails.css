@@ -1,0 +1,13 @@
+.tickerdetails {
+	width: 300px;
+}
+
+.tickerdetails > h2 {
+	text-align: center;
+	font-size: 2rem;
+	margin-bottom: .5rem;
+}
+
+.tickerdetails > table {
+	width: 100%;
+}

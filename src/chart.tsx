@@ -2,6 +2,8 @@ import { CandlestickData, createChart, UTCTimestamp, ChartOptions, DeepPartial, 
 import { restClient, websocketClient, IRestClient } from '@polygon.io/client-js';
 import { useRef, useEffect, useState, useMemo } from 'preact/hooks';
 import { Toolbar, Timespan } from './toolbar';
+import { Split, SplitItem } from './split';
+import { TickerDetails } from './tickerdetails';
 import './chart.css';
 
 function getLocalOffsetMS(): number {
@@ -317,23 +319,28 @@ export function Chart({ apiKey }) {
 	}, [ticker, live]);
 
 	return (
-		<>
-			<Toolbar
-				setOptions={setOptions}
-				live={live}
-				setLive={setLive}
-				ticker={ticker}
-				setTicker={setTicker}
-				multiplier={multiplier}
-				setMultiplier={setMultiplier}
-				timespan={timespan}
-				setTimespan={setTimespan}
-				date={date}
-				setDate={setDate}
-				rest={rest}
-				/>
-			<div id="chart" ref={div} />
-		</>
+		<Split>
+			<SplitItem>
+				<Toolbar
+					setOptions={setOptions}
+					live={live}
+					setLive={setLive}
+					ticker={ticker}
+					setTicker={setTicker}
+					multiplier={multiplier}
+					setMultiplier={setMultiplier}
+					timespan={timespan}
+					setTimespan={setTimespan}
+					date={date}
+					setDate={setDate}
+					rest={rest}
+					/>
+				<div id="chart" ref={div} />
+			</SplitItem>
+			<SplitItem>
+				<TickerDetails rest={rest} ticker={ticker} />
+			</SplitItem>
+		</Split>
 	);
 }
 

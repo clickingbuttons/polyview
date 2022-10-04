@@ -62,7 +62,7 @@ export function Toolbar({
 			rightPriceScale: {
 				mode: percent ? PriceScaleMode.Percentage : PriceScaleMode.Normal,
 				scaleMargins: {
-					top: 0,
+					top: 0.05,
 					bottom: 0.2,
 				}
 			},
@@ -71,7 +71,7 @@ export function Toolbar({
 				borderColor: 'rgba(197, 203, 206, 1)',
 				scaleMargins: {
 					top: 0.85,
-					bottom: 0
+					bottom: 0.05
 				}
 			},
 		} as DeepPartial<ChartOptions>);

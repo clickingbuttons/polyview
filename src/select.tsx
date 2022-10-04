@@ -29,25 +29,19 @@ export function SymbolPicker({ rest, value, onChange: userOnChange }: SymbolPick
 	}
 	const debouncedFetchItems = useCallback(debounce(fetchItems, 200), []);
 
-	useEffect(() => debouncedFetchItems(innerValue, setItems), [innerValue]);
+	useEffect(() => isOpen && debouncedFetchItems(innerValue, setItems), [innerValue, isOpen]);
 
 	function onClick(v, ev) {
 		userOnChange(v, ev);
+		setInnerValue(v);
 		setIsOpen(false);
 	}
 
 	function onKeyPress(ev) {
 		if (ev.which === 13) {
-			userOnChange(innerValue, ev);
-			setIsOpen(false);
+			onClick(innerValue, ev);
 		}
 	}
-
-/*
-	useEffect(() => {
-		document.addEventListener('click', 
-	}, []);
-		*/
 
 	function onBlur(ev) {
 		if (div.current && !div.current.contains(ev.relatedTarget)) {
@@ -56,7 +50,7 @@ export function SymbolPicker({ rest, value, onChange: userOnChange }: SymbolPick
 	}
 
 	return (
-		<div ref={div} class="select" onBlur={() => console.log(1)}>
+		<div ref={div} class="select">
 			<input
 				value={innerValue}
 				onInput={ev => setInnerValue(ev.target.value.toUpperCase())}
