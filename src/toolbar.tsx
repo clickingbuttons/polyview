@@ -53,7 +53,9 @@ export function Toolbar({
 	setDate,
 	rest,
 	showDetails,
-	setShowDetails
+	setShowDetails,
+	showOverlay,
+	setShowOverlay
 }) {
 	const [percent, setPercent] = useState(false);
 	const [dark, setDark] = useState(window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
@@ -101,8 +103,11 @@ export function Toolbar({
 			<button onClick={() => setDark(!dark)}>
 				{dark ? <b>D</b> : 'D'}
 			</button>
+			<button onClick={() => setShowOverlay(!showOverlay)}>
+				{showOverlay ? <b>O</b> : 'O'}
+			</button>
 			<button onClick={() => setShowDetails(!showDetails)}>
-				<svg width=".8rem" height=".8rem" viewBox="0 0 72 72">
+				<svg width="0.8rem" height="0.8rem" viewBox="0 0 72 72">
 					<g id="color"/>
 					<g id="hair"/>
 					<g id="skin"/>

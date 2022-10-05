@@ -1,79 +1,15 @@
-import { CandlestickData, createChart, UTCTimestamp, ChartOptions, DeepPartial, IChartApi, ISeriesApi } from 'lightweight-charts';
-import { restClient, websocketClient, IRestClient } from '@polygon.io/client-js';
+import { createChart, ChartOptions, DeepPartial, IChartApi, ISeriesApi, MouseEventParams } from 'lightweight-charts';
+import { restClient, websocketClient } from '@polygon.io/client-js';
 import { useRef, useEffect, useState, useMemo } from 'preact/hooks';
 import { Toolbar, Timespan } from './toolbar';
 import { Split, SplitItem } from './split';
 import { TickerDetails } from './tickerdetails';
+import { toymd, loadData, getTimespanMS, getLocalOffsetMS, getWSTicker, getLocalTime, getOverlay, Aggregate, aggBar } from './helpers';
 import './chart.css';
 
-function getLocalOffsetMS(): number {
-	return new Date().getTimezoneOffset() * 60 * 1000;
-}
-
-function getLocalTime(epochMS: number): UTCTimestamp {
-	return (new Date(epochMS).getTime() - getLocalOffsetMS()) / 1000 as UTCTimestamp;
-}
-
-function toymd(date: Date) {
-	return date.toISOString().substring(0, 10);
-}
-
-function getTimespanMS(timespan: Timespan): number {
-	switch (timespan) {
-		case 'minute':
-			return 1000 * 60;
-    case 'hour':
-			return 1000 * 60 * 60;
-    case 'day':
-			return 1000 * 60 * 60 * 24;
-    case 'week':
-			return 1000 * 60 * 60 * 24 * 7;
-    case 'month':
-			return 1000 * 60 * 60 * 24 * 30;
-    case 'quarter':
-			return 1000 * 60 * 60 * 24 * 365/4;
-    case 'year':
-			return 1000 * 60 * 60 * 24 * 365;
-	}
-}
-
-const barsPageSize = 10000;
-async function loadData(rest: IRestClient, ticker: string, multiplier: number, timespan: string, date: string | number, loadForwards: boolean): Promise<CandlestickData[]> {
-	// Cleverness: desc + reverse
-	const from = loadForwards ? String(date) : '1970-01-01';
-	const to = loadForwards ? '2100-01-01' : String(date);
-	return rest.stocks.aggregates(ticker, multiplier, timespan, from, to, { limit: barsPageSize, sort: loadForwards ? 'asc' : 'desc' })
-		.then(res => {
-			if (!res.results)
-				return [];
-
-			return res.results.map(bar => ({
-				// for candlestick series
-				time: getLocalTime(bar.t),
-				open: bar.o,
-				high: bar.h,
-				low: bar.l,
-				close: bar.c,
-
-				// for histogram series (also uses time)
-				value: bar.v,
-				color: bar.o < bar.c ? 'rgba(0, 150, 136, 0.8)' : 'rgba(255,82,82, 0.8)',
-			} as CandlestickData))
-		})
-		.then(candles => loadForwards ? candles : candles.reverse());
-}
-
-async function getWSTicker(rest: IRestClient, ticker: string): Promise<string> {
-	if (ticker.startsWith('X')) {
-		// ...polygon only allows XT:X:BTC-USD and not XT:X:BTCUSD :(
-		return rest.reference.tickerDetails(ticker)
-			.then(ticker => {
-				const { base_currency_symbol, currency_symbol } = ticker.results as any;
-				return `X:${base_currency_symbol}-${currency_symbol}`
-			})
-	} else {
-		return `${ticker}`
-	}
+interface SeriesAggregate extends Aggregate {
+	value?: number; // Optimization for volume so we can reuse same object
+	color?: string;
 }
 
 export function Chart({ apiKey }) {
@@ -82,6 +18,13 @@ export function Chart({ apiKey }) {
 	const [chart, setChart] = useState(null as IChartApi);
 	const [options, setOptions] = useState({} as DeepPartial<ChartOptions>);
 	let [series, setSeries] = useState([] as ISeriesApi<any>[]);
+
+	// hover
+	const [showOverlay, setShowOverlay] = useState(true);
+	const [hover, setHover] = useState({} as MouseEventParams);
+	function onCrosshairMove(p: MouseEventParams) {
+		setHover(p);
+	}
 
 	useEffect(() => {
 		const newChart = createChart(div.current, {
@@ -95,6 +38,9 @@ export function Chart({ apiKey }) {
 			},
 		});
 		setChart(newChart);
+		newChart.subscribeCrosshairMove(onCrosshairMove);
+
+		return () => newChart.unsubscribeCrosshairMove(onCrosshairMove);
 	}, []);
 
 	const onResize = useMemo(() => () => {
@@ -102,7 +48,6 @@ export function Chart({ apiKey }) {
 			return;
 		const ele = div.current as HTMLDivElement;
 		chart.resize(ele.offsetWidth, ele.offsetHeight, true);
-		console.log('Size changed');
 	}, [chart, div]);
 
 	useEffect(() => {
@@ -119,15 +64,15 @@ export function Chart({ apiKey }) {
 
 	// data
 	const rest = useMemo(() => restClient(apiKey), [apiKey]);
-	const [data, setData] = useState([] as CandlestickData[]);
+	const [data, setData] = useState([] as Aggregate[]);
 	const [fitContent, setFitContent] = useState(false);
 	// data picker
-	const [ticker, setTicker] = useState('AAPL');
+	const [ticker, setTicker] = useState('X:BTCUSD');
 	const [multiplier, setMultiplier] = useState(1);
 	const [timespan, setTimespan] = useState('day' as Timespan);
 	const [date, setDate] = useState(toymd(new Date()));
 	const [showDetails, setShowDetails] = useState(true);
-	useEffect(onResize, [showDetails]);
+	useEffect(onResize, [showDetails]); // Resize on show/hide side pane
 
 	function setStatus(text: string, color: string = 'white') {
 		if (chart) {
@@ -141,6 +86,7 @@ export function Chart({ apiKey }) {
 		}
 	}
 
+	// Update data
 	useEffect(() => {
 		let isSubbed = true;
 		if (!ticker) {
@@ -166,6 +112,7 @@ export function Chart({ apiKey }) {
 		return () => isSubbed = false;
 	}, [ticker, multiplier, timespan, date]);
 
+	// Update series + view + crosshair
 	useEffect(() => {
 		if (!chart) {
 			return;
@@ -185,10 +132,19 @@ export function Chart({ apiKey }) {
 				},
 				priceScaleId: 'left',
 			}));
+			series.push(chart.addLineSeries());
 			setSeries(series);
 		}
+		// candle
 		series[0].setData(data);
+		// volume
 		series[1].setData(data);
+		// vwap 
+		series[2].setData(data.map(bar => ({
+			time: bar.time,
+			value: bar.vwap,
+			color: 'purple',
+		})));
 		if (fitContent) {
 			chart.timeScale().fitContent();
 			setFitContent(false);
@@ -256,39 +212,41 @@ export function Chart({ apiKey }) {
 		return () => chart.timeScale().unsubscribeVisibleLogicalRangeChange(onRangeChange);
 	}, [ticker, multiplier, timespan, data, reachedEnd]);
 
-
 	// live
 	const [live, setLive] = useState(false);
 	useEffect(() => {
-		if (!live) {
+		if (!live || multiplier !== 1 || timespan !== 'minute') {
 			return;
 		}
 		console.log('live');
 		const ws = websocketClient(apiKey);
 		let client: WebSocket;
 		let topic: string;
+		// let lastAgg: Aggregate;
 
 		if (ticker.startsWith('X:')) {
 			client = ws.crypto();
-			topic = 'XA';
+			topic = 'XA'; // 'XT';
+			// todo: get all trades in period + agg them
+			// lastAgg = rest.crypto.trades(ticker).then(
 		} else if (ticker.startsWith('O:')) {
 			client = ws.options();
-			topic = 'AM';
+			topic = 'AM'; //'T';
 		} else if (ticker.startsWith('C:')) {
 			client = ws.forex();
 			topic = 'CA';
 		} else {
 			client = ws.stocks();
-			topic = 'AM';
+			topic = 'AM'; //'T';
 		}
 
-		client.onmessage = ({ data }) => {
-			const [message] = JSON.parse(data);
+		client.onmessage = ({ data: msg }) => {
+			const [message] = JSON.parse(msg);
 			// console.log('message', message);
 
 			switch (message.ev) {
 				case 'status':
-					if (message.status == 'auth_success') {
+					if (message.status === 'auth_success') {
 						getWSTicker(rest, ticker).then(ticker => {
 							console.log('subbing to', ticker);
 							client.send(JSON.stringify({
@@ -298,20 +256,50 @@ export function Chart({ apiKey }) {
 						});
 					}
 					break;
-				default:
-					// console.log('agg', message);
+				case 'AM':
+				case 'CA':
+				case 'XA':
+					console.log('message', message);
+					const time = getLocalTime(message.s);
+					const	color = message.o < message.c ? 'rgba(0, 150, 136, 0.8)' : 'rgba(255,82,82, 0.8)';
 					series[0].update({
-						time: getLocalTime(message.s),
+						time: time,
 						open: message.o,
 						high: message.h,
 						low: message.l,
 						close: message.c,
+						color: color,
 					});
 					series[1].update({
-						time: getLocalTime(message.s),
+						time: time,
 						value: message.v,
-						color: message.o < message.c ? 'rgba(0, 150, 136, 0.8)' : 'rgba(255,82,82, 0.8)',
+						color: color,
 					});
+					series[2].update({
+						time: time,
+						value: message.vw,
+						color: 'purple',
+					});
+					break;
+				case 'T':
+				case 'XT':
+					const isStock = message.sym && message.sym[1] !== ':';
+					const oldBar = data[data.length - 1];
+					const newBar = aggBar(oldBar, message.t, message.p, message.s, timespan, multiplier, isStock) as SeriesAggregate;
+					newBar.color = newBar.open < newBar.close ? 'rgba(0, 150, 136, 0.8)' : 'rgba(255,82,82, 0.8)';
+					newBar.value = newBar.volume;
+					console.log('update', oldBar, newBar);
+					// candlestick
+					series[0].update(newBar);
+					// volume
+					series[1].update(newBar);
+					// vwap
+					series[2].update({
+						time: newBar.time,
+						value: newBar.vwap
+					});
+					break;
+				default:
 					break;
 			}
 		};
@@ -340,8 +328,14 @@ export function Chart({ apiKey }) {
 					rest={rest}
 					showDetails={showDetails}
 					setShowDetails={setShowDetails}
-					/>
-				<div id="chart" ref={div} />
+					showOverlay={showOverlay}
+					setShowOverlay={setShowOverlay}
+				/>
+				<div id="chart" ref={div}>
+					<div id="chart-overlay">
+						{showOverlay && getOverlay(hover)}
+					</div>
+				</div>
 			</SplitItem>
 			{showDetails && 
 				<SplitItem>

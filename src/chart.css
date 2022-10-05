@@ -3,6 +3,13 @@
 	position: relative;
 }
 
+#chart-overlay {
+	position: absolute;
+	z-index: 10;
+	left: 64px;
+	padding: .5rem;
+}
+
 .tv-lightweight-charts {
 	position: absolute;
 }

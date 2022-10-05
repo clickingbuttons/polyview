@@ -1,3 +1,4 @@
+import { FunctionComponent } from 'preact';
 import './split.css';
 
 export function Splitter() {
@@ -6,7 +7,7 @@ export function Splitter() {
 	);
 }
 
-export function SplitItem({ children }) {
+export const SplitItem: FunctionComponent = ({ children }) => {
 	return (
 		<div class="splitItem">
 			{children}
@@ -14,8 +15,7 @@ export function SplitItem({ children }) {
 	);
 }
 
-export function Split({ children }) {
-	
+export const Split: FunctionComponent = ({ children }) => {
 	return (
 		<div class="split">
 			{children}

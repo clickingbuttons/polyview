@@ -4,7 +4,7 @@ import { useState } from 'preact/hooks';
 
 export async function isValidAPIKey(apiKey: string): Promise<Boolean> {
 	const client = restClient(apiKey);
-	return client.stocks.aggregates('AAPL', 1, 'minute', '2021-07-22', '2021-07-22', { limit: 1 })
+	return client.reference.tickerDetails('AAPL')
 		.then(() => true)
 		.catch(() => false);
 }
