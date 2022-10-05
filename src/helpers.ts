@@ -29,12 +29,13 @@ export function humanQuantity(val: number) {
 	]);
 };
 
-export function getLocalOffsetMS(): number {
-	return new Date().getTimezoneOffset() * 60 * 1000;
+export function getLocalOffsetMS(date: Date): number {
+	return date.getTimezoneOffset() * 60 * 1000;
 }
 
 export function getLocalTime(epochMS: number): UTCTimestamp {
-	return (new Date(epochMS).getTime() - getLocalOffsetMS()) / 1000 as UTCTimestamp;
+	const date = new Date(epochMS);
+	return (date.getTime() - getLocalOffsetMS(date)) / 1000 as UTCTimestamp;
 }
 
 export function toymd(date: Date) {

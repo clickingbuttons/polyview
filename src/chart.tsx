@@ -177,7 +177,7 @@ export function Chart({ apiKey }) {
 			const timespanMS = getTimespanMS(timespan);
 			let epochMS: number;
 			if (loadBackwards) {
-				epochMS = data[0].time as number * 1000 + getLocalOffsetMS() - timespanMS;
+				epochMS = data[0].time as number * 1000 + getLocalOffsetMS(new Date(data[0].time)) - timespanMS;
 				// console.log('loading more bars before', new Date(epochMS).toISOString());
 				setStatus(`Loading before ${new Date(epochMS).toISOString().substring(0, 10)}...`);
 			} else {
