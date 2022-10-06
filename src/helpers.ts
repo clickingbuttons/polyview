@@ -1,6 +1,7 @@
-import { UTCTimestamp, MouseEventParams, BarPrices, BarPrice } from 'lightweight-charts';
+import { MouseEventParams, BarPrices, BarPrice } from 'lightweight-charts';
 import { IRestClient } from '@polygon.io/client-js';
 import { Timespan } from './toolbar';
+import { getTimezoneOffset } from 'date-fns-tz';
 
 function humanize(val: number, scale: string[]) {
 	const thresh = 1000;
@@ -29,13 +30,23 @@ export function humanQuantity(val: number) {
 	]);
 };
 
-export function _getLocalOffsetMS(date: Date): number {
-	return date.getTimezoneOffset() * 60 * 1000;
+export function convertTZ(date: Date, tzString: string): Date {
+	const offsetMS = getTimezoneOffset(tzString, date);
+	return new Date(date.getTime() + offsetMS);
 }
 
-export function _getLocalTime(epochMS: number): UTCTimestamp {
-	const date = new Date(epochMS);
-	return (date.getTime() - _getLocalOffsetMS(date)) / 1000 as UTCTimestamp;
+export type Market = 'stocks' | 'options' | 'forex' | 'crypto';
+
+export function getTickerMarket(ticker: string): Market {
+	if (ticker.startsWith('X:')) {
+		return 'crypto';
+	} else if (ticker.startsWith('O:')) {
+		return 'options';
+	} else if (ticker.startsWith('C:')) {
+		return 'forex';
+	} else {
+		return 'stocks';
+	}
 }
 
 export function toymd(date: Date) {
@@ -62,7 +73,7 @@ export function getTimespanMS(timespan: Timespan): number {
 }
 
 export type Aggregate = {
-	time: UTCTimestamp;
+	time: number; // epoch MS
 	open: number;
 	high: number;
 	low: number;
@@ -72,9 +83,17 @@ export type Aggregate = {
 	vwap: number;
 }
 
+export function isMarketHoliday(d: Date): Boolean {
+	// TODO: proper calendar
+	if (d.getUTCDay() === 0 || d.getUTCDay() === 6) {
+		return true;
+	}
+
+	return false;
+}
+
 const barsPageSize = 10000;
-export async function loadData(rest: IRestClient, ticker: string, multiplier: number, timespan: Timespan, date: string | number): Promise<Aggregate[]> {
-	console.log('loadData', date);
+export async function fetchAggs(rest: IRestClient, ticker: string, multiplier: number, timespan: Timespan, date: string | number): Promise<Aggregate[]> {
 	// Cleverness: desc + reverse
 	const from = '1970-01-01';
 	const to = String(date);
@@ -83,43 +102,64 @@ export async function loadData(rest: IRestClient, ticker: string, multiplier: nu
 			if (!resp.results || resp.results.length === 0)
 				return [];
 
-			// Normalize agg timestamp because Polygon sometimes returns daily bars at
-			// 16:00 and sometimes at 20:00
-			const timespanMS = getTimespanMS(timespan) * multiplier;
-			resp.results.forEach(b => b.t = Math.trunc(b.t / timespanMS) * timespanMS);
-
+			// Normalize agg timestamp to 16:00 because Polygon returns 16:00 or 20:00
+			if (timespan === 'day')  {
+				resp.results.forEach(agg => {
+					agg.t = toStartOfTimespan(agg.t, timespan, multiplier) + getTimespanMS('hour') * 20;
+				});
+			}
 			const firstMS = resp.results[resp.results.length - 1].t;
 			const lastMS = resp.results[0].t;
 			console.log(firstMS, lastMS);
-			const nBars = (lastMS - firstMS) / timespanMS + 1;
-			console.log('got', resp.results.length, '/', nBars, 'aggs');
-			const res = Array(nBars).fill({} as Aggregate);
-			
-			let j = resp.results.length - 1;
-			for (let i = 0; i < res.length; i++) {
-				const aggMS = firstMS + i * timespanMS;
-				const bar = resp.results[j];
-				bar.t = Math.trunc(bar.t / timespanMS) * timespanMS;
-				res[i] = {
-					time: (aggMS / 1000) as UTCTimestamp,
-				};
-				if (bar.t === aggMS) {
-					// for candlestick series
-					res[i].open = bar.o;
-					res[i].high = bar.h;
-					res[i].low = bar.l;
-					res[i].close = bar.c;
-					res[i].volume = bar.v;
-					res[i].vwap = bar.vw;
+			const res = [] as Aggregate[];
 
-					// Optimization for candlestick + volume
-					res[i].value = bar.v;
-					res[i].color = bar.o < bar.c ? 'rgba(0, 150, 136, 0.8)' : 'rgba(255,82,82, 0.8)';
+			const market = getTickerMarket(ticker);
+			let j = resp.results.length - 1;
+			for (var ms = firstMS; ms <= lastMS; ms += getTimespanMS(timespan) * multiplier) {
+				const bar = resp.results[j];
+				const barMatches = bar.t === ms;
+
+				if (market === 'stocks') {
+					const offsetMS = getTimezoneOffset('America/New_York', ms);
+					const date = new Date(ms + offsetMS);
+					if (['minute', 'hour', 'day'].includes(timespan)) {
+						if (isMarketHoliday(date)) {
+							if (barMatches) {
+								console.error('agg returned on holiday', date.getTime(), bar);
+							}
+							continue;
+						}
+					}
+					if (['minute', 'hour'].includes(timespan)) {
+						const hour = date.getUTCHours();
+						if (hour < 4 || hour >= 20) {
+							if (barMatches) {
+								console.error('agg returned during market close', date.getTime(), bar);
+							}
+							continue;
+						}
+					}
+				}
+
+				const newBar = {
+					time: ms,
+				} as Aggregate;
+				if (barMatches) {
+					// for candlestick series
+					newBar.time = bar.t,
+					newBar.open = bar.o;
+					newBar.high = bar.h;
+					newBar.low = bar.l;
+					newBar.close = bar.c;
+					newBar.volume = bar.v;
+					newBar.vwap = bar.vw;
 
 					j -= 1;
 				}
+				res.push(newBar);
 			}
 
+			console.log(res, resp.results);
 			return res;
 		});
 }
@@ -155,6 +195,12 @@ export function getOverlay(hover: MouseEventParams) {
 				value = value as BarPrice;
 				overlay.volume = value;
 				break;
+			case 'Line':
+				value = value as BarPrice;
+				overlay.vwap = value;
+				break;
+			default:
+				console.log('unknown series type', key.seriesType());
 		}
 	});
 	if (overlay.open) {
@@ -163,8 +209,9 @@ export function getOverlay(hover: MouseEventParams) {
 		} H: ${overlay.high.toFixed(precision)
 		} L: ${overlay.low.toFixed(precision)
 		} C: ${overlay.close.toFixed(precision)
-		} %: ${((overlay.close - overlay.open) / overlay.open * 100).toFixed(precision)
-		} V: $${overlay.volume}`
+		}`;
+		// %: ${((overlay.close - overlay.open) / overlay.open * 100).toFixed(precision)
+		// } Li: $${humanQuantity(overlay.vwap * overlay.volume)}`
 	}
 
 	return '';
@@ -172,11 +219,11 @@ export function getOverlay(hover: MouseEventParams) {
 
 export function toStartOfTimespan(epochMS: number, timespan: Timespan, multiplier: number): number {
 	let truncation = getTimespanMS(timespan) * multiplier;
-	return epochMS - (epochMS % truncation);
+	return Math.trunc(epochMS / truncation) * truncation;
 }
 
-export function aggBar(lastBar: Aggregate, epochMS: number, price: number, size: number, timespan: Timespan, multiplier: number, isStock: bool): Aggregate {
-	const time = getLocalTime(toStartOfTimespan(epochMS, timespan, multiplier));
+export function aggBar(lastBar: Aggregate, epochMS: number, price: number, size: number, timespan: Timespan, multiplier: number): Aggregate {
+	const time = toStartOfTimespan(epochMS, timespan, multiplier);
 	if (lastBar.time === time) {
 		return {
 			time: time,
@@ -200,3 +247,47 @@ export function aggBar(lastBar: Aggregate, epochMS: number, price: number, size:
 		vwap: price,
 	};
 }
+
+export interface Trade {
+	ts: number;
+	price: number;
+	size: number;
+	conditions: number[];
+}
+
+export function isEligible(t: Trade): Boolean {
+	return true;
+}
+
+// Assumes all trades are in window.
+export function aggTrades(trades: Trade[], time: number): Aggregate | undefined {
+	let res = {} as Aggregate;
+
+	trades.filter(isEligible).forEach(t => {
+		if (res.open === 0) {
+			res = {
+				time: time,
+				open: t.price,
+				high: t.price,
+				low: t.price,
+				close: t.price,
+				volume: t.size,
+				liquidity: t.size * t.price,
+				vwap: t.price,
+			};
+		} else {
+			res.liquidity += t.size * t.price;
+			res.volume += t.size;
+			res.vwap = res.liquidity / res.volume;
+			res.close = t.price;
+			if (t.price > res.high) {
+				res.high = t.price;
+			} else if (t.price < res.low) {
+				res.low = t.price;
+			}
+		}
+	});
+
+	return res.open ? res : undefined;
+}
+

@@ -1,59 +1,11 @@
-import { createChart, ChartOptions, DeepPartial, IChartApi, ISeriesApi, MouseEventParams, UTCTimestamp } from 'lightweight-charts';
+import { createChart, ChartOptions, DeepPartial, IChartApi, ISeriesApi, MouseEventParams, UTCTimestamp, CandlestickData, HistogramData } from 'lightweight-charts';
 import { restClient, websocketClient } from '@polygon.io/client-js';
 import { useRef, useEffect, useState, useMemo } from 'preact/hooks';
 import { Toolbar, Timespan } from './toolbar';
 import { Split, SplitItem } from './split';
 import { TickerDetails } from './tickerdetails';
-import { toymd, loadData, getTimespanMS, getWSTicker, getOverlay, Aggregate, aggBar } from './helpers';
+import { toymd, fetchAggs, getTimespanMS, getWSTicker, getOverlay, Aggregate, aggBar, getTickerMarket, convertTZ } from './helpers';
 import './chart.css';
-
-interface SeriesAggregate extends Aggregate {
-	value?: number; // Optimization for volume so we can reuse same object
-	color?: string;
-}
-
-interface Trade {
-	ts: number;
-	price: number;
-	size: number;
-	conditions: number[];
-}
-
-function isEligible(t: Trade): bool {
-	return true;
-}
-
-// Assumes all trades are in window.
-function aggTrades(trades: Trade[], time: UTCTimestamp): Aggregate | undefined {
-	let res = {} as Aggregate;
-
-	trades.filter(isEligible).forEach(t => {
-		if (res.open === 0) {
-			res = {
-				time: time,
-				open: t.price,
-				high: t.price,
-				low: t.price,
-				close: t.price,
-				volume: t.size,
-				liquidity: t.size * t.price,
-				vwap: t.price,
-			};
-		} else {
-			res.liquidity += t.size * t.price;
-			res.volume += t.size;
-			res.vwap = res.liquidity / res.volume;
-			res.close = t.price;
-			if (t.price > res.high) {
-				res.high = t.price;
-			} else if (t.price < res.low) {
-				res.low = t.price;
-			}
-		}
-	});
-
-	return res.open ? res : undefined;
-}
 
 export function Chart({ apiKey }) {
 	// lightweight-charts
@@ -107,13 +59,14 @@ export function Chart({ apiKey }) {
 
 	// data
 	const rest = useMemo(() => restClient(apiKey), [apiKey]);
-	const [data, setData] = useState([] as Aggregate[]);
+	const [aggs, setAggs] = useState([] as Aggregate[]);
 	const [fitContent, setFitContent] = useState(false);
 	// data picker
-	const [ticker, setTicker] = useState('X:BTCUSD');
+	const [ticker, setTicker] = useState('AAPL');
 	const [multiplier, setMultiplier] = useState(1);
-	const [timespan, setTimespan] = useState('day' as Timespan);
+	const [timespan, setTimespan] = useState<Timespan>('day');
 	const [date, setDate] = useState(toymd(new Date()));
+	const [timezone, setTimezone] = useState('America/New_York');
 	const [showDetails, setShowDetails] = useState(true);
 	useEffect(onResize, [showDetails]); // Resize on show/hide side pane
 
@@ -136,16 +89,16 @@ export function Chart({ apiKey }) {
 			setStatus('No ticker');
 		}
 
-		setData([]);
+		setAggs([]);
 		setStatus(`Loading ${ticker}...`);
-		loadData(rest, ticker, multiplier, timespan, date)
+		fetchAggs(rest, ticker, multiplier, timespan, date)
 			.then(candles => {
 				if (!isSubbed) {
 					return;
 				}
 				if (candles.length > 0) {
 					setStatus('');
-					setData(candles);
+					setAggs(candles);
 					setFitContent(true);
 				} else {
 					setStatus(`No data for ${ticker}`);
@@ -160,7 +113,7 @@ export function Chart({ apiKey }) {
 		if (!chart) {
 			return;
 		}
-		if (data.length === 0) {
+		if (aggs.length === 0) {
 			series.forEach(s => chart.removeSeries(s));
 			series = [];
 			setSeries([]);
@@ -178,22 +131,43 @@ export function Chart({ apiKey }) {
 			series.push(chart.addLineSeries());
 			setSeries(series);
 		}
+		// convert ts
+		const timezoneAggs = aggs.map(agg => ({
+			...agg,
+			time: convertTZ(new Date(agg.time), timezone).getTime() / 1000 as UTCTimestamp,
+		}));
 		// candle
-		series[0].setData(data);
+		series[0].setData(timezoneAggs.map(a => {
+			const res = a as unknown /* for time: UTCTimestamp */ as CandlestickData;
+			if (res.open) {
+				res.color = a.open < a.close ? 'rgba(0, 150, 136, 0.8)' : 'rgba(255,82,82, 0.8)';
+			}
+			return res;
+		}));
 		// volume
-		series[1].setData(data);
+		series[1].setData(timezoneAggs.map(a => {
+			const res = { time: a.time } as HistogramData;
+			if (a.volume) {
+				res.value = a.volume;
+				res.color = a.open < a.close ? 'rgba(0, 150, 136, 0.8)' : 'rgba(255,82,82, 0.8)';
+			}
+			return res;
+		}));
 		// vwap 
-		series[2].setData(data.map(bar => ({
-			time: bar.time,
-			value: bar.vwap,
-			color: 'purple',
-		})));
+		series[2].setData(timezoneAggs.map(a => {
+			const res = { time: a.time } as HistogramData;
+			if (a.vwap) {
+				res.value = a.vwap;
+				res.color = 'purple';
+			}
+			return res;
+		}));
 		if (fitContent) {
 			chart.timeScale().fitContent();
 			setFitContent(false);
 			setReachedEnd(false);
 		}
-	}, [data]);
+	}, [aggs]);
 
 	// infinite scrolling back
 	const [reachedEnd, setReachedEnd] = useState(false);
@@ -204,7 +178,7 @@ export function Chart({ apiKey }) {
 		}
 		let isLoading = false;
 		function onRangeChange() {
-			if (isLoading || data.length === 0 || series.length === 0 || reachedEnd) {
+			if (isLoading || aggs.length === 0 || series.length === 0 || reachedEnd) {
 				return;
 			}
 			const logicalRange = chart.timeScale().getVisibleLogicalRange();
@@ -219,7 +193,7 @@ export function Chart({ apiKey }) {
 			const timespanMS = getTimespanMS(timespan);
 			let epochMS: number;
 			if (loadBackwards) {
-				epochMS = data[0].time as number * 1000 - timespanMS;
+				epochMS = aggs[0].time - timespanMS;
 				// console.log('loading more bars before', epochMS, data[0].time);
 				setStatus(`Loading before ${new Date(epochMS).toISOString().substring(0, 10)}...`);
 			} else {
@@ -233,15 +207,14 @@ export function Chart({ apiKey }) {
 				// setStatus(`Loading after ${new Date(epochMS).toISOString().substring(0, 10)}`, 'rgba(100, 100, 100, 0.3)');
 			}
 
-			loadData(rest, ticker, multiplier, timespan, epochMS)
+			fetchAggs(rest, ticker, multiplier, timespan, epochMS)
 				.then(newData => {
-					// console.log('loaded', newData.length, 'more bars', newData);
 					isLoading = false;
 					if (newData.length === 0) {
 						setReachedEnd(true);
+					} else {
+						setAggs([...newData, ...aggs]);
 					}
-					// console.log('newData', newData, 'oldData', data);
-					setData([...newData, ...data]);
 					setStatus('');
 					chart.applyOptions({ handleScroll: true });
 				});
@@ -249,7 +222,7 @@ export function Chart({ apiKey }) {
 		chart.timeScale().subscribeVisibleLogicalRangeChange(onRangeChange);
 
 		return () => chart.timeScale().unsubscribeVisibleLogicalRangeChange(onRangeChange);
-	}, [ticker, multiplier, timespan, data, reachedEnd]);
+	}, [ticker, multiplier, timespan, aggs, reachedEnd]);
 
 	// live
 	const [live, setLive] = useState(false);
@@ -263,7 +236,8 @@ export function Chart({ apiKey }) {
 		let topic: string;
 		// let lastAgg: Promise<Aggregate>;
 
-		if (ticker.startsWith('X:')) {
+		switch (getTickerMarket(ticker)) {
+			case 'crypto':
 			client = ws.crypto();
 			topic = 'XA'; // 'XT';
 			// todo: get all trades in period + agg them
@@ -274,15 +248,19 @@ export function Chart({ apiKey }) {
 			//		size: t.size,
 			//	)}))
 			//	.then(aggTrades);
-		} else if (ticker.startsWith('O:')) {
+			break;
+			case 'options':
 			client = ws.options();
 			topic = 'AM'; //'T';
-		} else if (ticker.startsWith('C:')) {
+			break;
+			case 'forex':
 			client = ws.forex();
 			topic = 'CA';
-		} else {
+			break;
+			case 'stocks':
 			client = ws.stocks();
 			topic = 'AM'; //'T';
+			break;
 		}
 
 		client.onmessage = ({ data: msg }) => {
@@ -327,11 +305,10 @@ export function Chart({ apiKey }) {
 					break;
 				case 'T':
 				case 'XT':
-					const isStock = message.sym && message.sym[1] !== ':';
-					const oldBar = data[data.length - 1];
-					const newBar = aggBar(oldBar, message.t, message.p, message.s, timespan, multiplier, isStock) as SeriesAggregate;
-					newBar.color = newBar.open < newBar.close ? 'rgba(0, 150, 136, 0.8)' : 'rgba(255,82,82, 0.8)';
-					newBar.value = newBar.volume;
+					const oldBar = aggs[aggs.length - 1];
+					const newBar = aggBar(oldBar, message.t, message.p, message.s, timespan, multiplier);
+					// newBar.color = newBar.open < newBar.close ? 'rgba(0, 150, 136, 0.8)' : 'rgba(255,82,82, 0.8)';
+					// newBar.value = newBar.volume;
 					console.log('update', oldBar, newBar);
 					// candlestick
 					series[0].update(newBar);
