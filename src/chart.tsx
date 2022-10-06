@@ -1,15 +1,58 @@
-import { createChart, ChartOptions, DeepPartial, IChartApi, ISeriesApi, MouseEventParams } from 'lightweight-charts';
+import { createChart, ChartOptions, DeepPartial, IChartApi, ISeriesApi, MouseEventParams, UTCTimestamp } from 'lightweight-charts';
 import { restClient, websocketClient } from '@polygon.io/client-js';
 import { useRef, useEffect, useState, useMemo } from 'preact/hooks';
 import { Toolbar, Timespan } from './toolbar';
 import { Split, SplitItem } from './split';
 import { TickerDetails } from './tickerdetails';
-import { toymd, loadData, getTimespanMS, getLocalOffsetMS, getWSTicker, getLocalTime, getOverlay, Aggregate, aggBar } from './helpers';
+import { toymd, loadData, getTimespanMS, getWSTicker, getOverlay, Aggregate, aggBar } from './helpers';
 import './chart.css';
 
 interface SeriesAggregate extends Aggregate {
 	value?: number; // Optimization for volume so we can reuse same object
 	color?: string;
+}
+
+interface Trade {
+	ts: number;
+	price: number;
+	size: number;
+	conditions: number[];
+}
+
+function isEligible(t: Trade): bool {
+	return true;
+}
+
+// Assumes all trades are in window.
+function aggTrades(trades: Trade[], time: UTCTimestamp): Aggregate | undefined {
+	let res = {} as Aggregate;
+
+	trades.filter(isEligible).forEach(t => {
+		if (res.open === 0) {
+			res = {
+				time: time,
+				open: t.price,
+				high: t.price,
+				low: t.price,
+				close: t.price,
+				volume: t.size,
+				liquidity: t.size * t.price,
+				vwap: t.price,
+			};
+		} else {
+			res.liquidity += t.size * t.price;
+			res.volume += t.size;
+			res.vwap = res.liquidity / res.volume;
+			res.close = t.price;
+			if (t.price > res.high) {
+				res.high = t.price;
+			} else if (t.price < res.low) {
+				res.low = t.price;
+			}
+		}
+	});
+
+	return res.open ? res : undefined;
 }
 
 export function Chart({ apiKey }) {
@@ -95,7 +138,7 @@ export function Chart({ apiKey }) {
 
 		setData([]);
 		setStatus(`Loading ${ticker}...`);
-		loadData(rest, ticker, multiplier, timespan, date, false)
+		loadData(rest, ticker, multiplier, timespan, date)
 			.then(candles => {
 				if (!isSubbed) {
 					return;
@@ -167,8 +210,7 @@ export function Chart({ apiKey }) {
 			const logicalRange = chart.timeScale().getVisibleLogicalRange();
 			const barsInfo = series[0].barsInLogicalRange(logicalRange);
 			const loadBackwards = barsInfo && barsInfo.barsBefore < -10;
-			const loadForwards = barsInfo && barsInfo.barsAfter < -10;
-			if (!barsInfo || (!loadBackwards && !loadForwards)) {
+			if (!barsInfo || !loadBackwards) {
 				return;
 			}
 			isLoading = true;
@@ -177,8 +219,8 @@ export function Chart({ apiKey }) {
 			const timespanMS = getTimespanMS(timespan);
 			let epochMS: number;
 			if (loadBackwards) {
-				epochMS = data[0].time as number * 1000 + getLocalOffsetMS(new Date(data[0].time)) - timespanMS;
-				// console.log('loading more bars before', new Date(epochMS).toISOString());
+				epochMS = data[0].time as number * 1000 - timespanMS;
+				// console.log('loading more bars before', epochMS, data[0].time);
 				setStatus(`Loading before ${new Date(epochMS).toISOString().substring(0, 10)}...`);
 			} else {
 				// TODO: get axis to not snap to newest date on load (which forces more data
@@ -191,18 +233,15 @@ export function Chart({ apiKey }) {
 				// setStatus(`Loading after ${new Date(epochMS).toISOString().substring(0, 10)}`, 'rgba(100, 100, 100, 0.3)');
 			}
 
-			loadData(rest, ticker, multiplier, timespan, epochMS, loadForwards)
+			loadData(rest, ticker, multiplier, timespan, epochMS)
 				.then(newData => {
 					// console.log('loaded', newData.length, 'more bars', newData);
 					isLoading = false;
 					if (newData.length === 0) {
 						setReachedEnd(true);
 					}
-					if (loadBackwards) {
-						setData([...newData, ...data]);
-					} else {
-						setData([...data, ...newData]);
-					}
+					// console.log('newData', newData, 'oldData', data);
+					setData([...newData, ...data]);
 					setStatus('');
 					chart.applyOptions({ handleScroll: true });
 				});
@@ -222,13 +261,19 @@ export function Chart({ apiKey }) {
 		const ws = websocketClient(apiKey);
 		let client: WebSocket;
 		let topic: string;
-		// let lastAgg: Aggregate;
+		// let lastAgg: Promise<Aggregate>;
 
 		if (ticker.startsWith('X:')) {
 			client = ws.crypto();
 			topic = 'XA'; // 'XT';
 			// todo: get all trades in period + agg them
-			// lastAgg = rest.crypto.trades(ticker).then(
+			//lastAgg = rest.crypto.trades(ticker)
+			//	.then(res => res.results.map(t => ({
+			//		ts: t.participant_timestamp,
+			//		price: t.price,
+			//		size: t.size,
+			//	)}))
+			//	.then(aggTrades);
 		} else if (ticker.startsWith('O:')) {
 			client = ws.options();
 			topic = 'AM'; //'T';
@@ -259,8 +304,7 @@ export function Chart({ apiKey }) {
 				case 'AM':
 				case 'CA':
 				case 'XA':
-					console.log('message', message);
-					const time = getLocalTime(message.s);
+					const time = message.s;
 					const	color = message.o < message.c ? 'rgba(0, 150, 136, 0.8)' : 'rgba(255,82,82, 0.8)';
 					series[0].update({
 						time: time,

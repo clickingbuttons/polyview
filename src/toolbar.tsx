@@ -108,10 +108,6 @@ export function Toolbar({
 			</button>
 			<button onClick={() => setShowDetails(!showDetails)}>
 				<svg width="0.8rem" height="0.8rem" viewBox="0 0 72 72">
-					<g id="color"/>
-					<g id="hair"/>
-					<g id="skin"/>
-					<g id="skin-shadow"/>
 					<g id="line">
 						<line x1="16" x2="56" y1="26" y2="26" fill="none" stroke="#000000" stroke-linecap="round" stroke-linejoin="round" stroke-miterlimit="10" stroke-width="2"/>
 						<line x1="16" x2="56" y1="36" y2="36" fill="none" stroke="#000000" stroke-linecap="round" stroke-linejoin="round" stroke-miterlimit="10" stroke-width="2"/>

@@ -1,4 +1,4 @@
-import { CandlestickData, UTCTimestamp, MouseEventParams, BarPrices, BarPrice } from 'lightweight-charts';
+import { UTCTimestamp, MouseEventParams, BarPrices, BarPrice } from 'lightweight-charts';
 import { IRestClient } from '@polygon.io/client-js';
 import { Timespan } from './toolbar';
 
@@ -29,13 +29,13 @@ export function humanQuantity(val: number) {
 	]);
 };
 
-export function getLocalOffsetMS(date: Date): number {
+export function _getLocalOffsetMS(date: Date): number {
 	return date.getTimezoneOffset() * 60 * 1000;
 }
 
-export function getLocalTime(epochMS: number): UTCTimestamp {
+export function _getLocalTime(epochMS: number): UTCTimestamp {
 	const date = new Date(epochMS);
-	return (date.getTime() - getLocalOffsetMS(date)) / 1000 as UTCTimestamp;
+	return (date.getTime() - _getLocalOffsetMS(date)) / 1000 as UTCTimestamp;
 }
 
 export function toymd(date: Date) {
@@ -73,32 +73,55 @@ export type Aggregate = {
 }
 
 const barsPageSize = 10000;
-export async function loadData(rest: IRestClient, ticker: string, multiplier: number, timespan: string, date: string | number, loadForwards: boolean): Promise<Aggregate[]> {
+export async function loadData(rest: IRestClient, ticker: string, multiplier: number, timespan: Timespan, date: string | number): Promise<Aggregate[]> {
+	console.log('loadData', date);
 	// Cleverness: desc + reverse
-	const from = loadForwards ? String(date) : '1970-01-01';
-	const to = loadForwards ? '2100-01-01' : String(date);
-	return rest.stocks.aggregates(ticker, multiplier, timespan, from, to, { limit: barsPageSize, sort: loadForwards ? 'asc' : 'desc' })
-		.then(res => {
-			if (!res.results)
+	const from = '1970-01-01';
+	const to = String(date);
+	return rest.stocks.aggregates(ticker, multiplier, timespan, from, to, { limit: barsPageSize, sort: 'desc' })
+		.then(resp => {
+			if (!resp.results || resp.results.length === 0)
 				return [];
 
-			return res.results.map(bar => ({
-				// for candlestick series
-				time: getLocalTime(bar.t),
-				open: bar.o,
-				high: bar.h,
-				low: bar.l,
-				close: bar.c,
-				volume: bar.v,
-				liquidity: bar.vw * bar.v,
-				vwap: bar.vw,
+			// Normalize agg timestamp because Polygon sometimes returns daily bars at
+			// 16:00 and sometimes at 20:00
+			const timespanMS = getTimespanMS(timespan) * multiplier;
+			resp.results.forEach(b => b.t = Math.trunc(b.t / timespanMS) * timespanMS);
 
-				// Shortcut for candlestick + volume
-				value: bar.v,
-				color: bar.o < bar.c ? 'rgba(0, 150, 136, 0.8)' : 'rgba(255,82,82, 0.8)',
-			}))
-		})
-		.then(candles => loadForwards ? candles : candles.reverse());
+			const firstMS = resp.results[resp.results.length - 1].t;
+			const lastMS = resp.results[0].t;
+			console.log(firstMS, lastMS);
+			const nBars = (lastMS - firstMS) / timespanMS + 1;
+			console.log('got', resp.results.length, '/', nBars, 'aggs');
+			const res = Array(nBars).fill({} as Aggregate);
+			
+			let j = resp.results.length - 1;
+			for (let i = 0; i < res.length; i++) {
+				const aggMS = firstMS + i * timespanMS;
+				const bar = resp.results[j];
+				bar.t = Math.trunc(bar.t / timespanMS) * timespanMS;
+				res[i] = {
+					time: (aggMS / 1000) as UTCTimestamp,
+				};
+				if (bar.t === aggMS) {
+					// for candlestick series
+					res[i].open = bar.o;
+					res[i].high = bar.h;
+					res[i].low = bar.l;
+					res[i].close = bar.c;
+					res[i].volume = bar.v;
+					res[i].vwap = bar.vw;
+
+					// Optimization for candlestick + volume
+					res[i].value = bar.v;
+					res[i].color = bar.o < bar.c ? 'rgba(0, 150, 136, 0.8)' : 'rgba(255,82,82, 0.8)';
+
+					j -= 1;
+				}
+			}
+
+			return res;
+		});
 }
 
 export async function getWSTicker(rest: IRestClient, ticker: string): Promise<string> {
