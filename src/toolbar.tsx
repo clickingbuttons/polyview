@@ -4,6 +4,11 @@ import { SymbolPicker } from './select';
 import './toolbar.css';
 
 export type Timespan = 'minute' | 'hour' | 'day' | 'week' | 'month' | 'quarter' | 'year';
+const timezones = [
+	// This is actually browser-specific. Yikes!
+	'America/New_York',
+	'UTC'
+];
 const timespans: Timespan[] = ['minute', 'hour', 'day', 'week', 'month', 'quarter', 'year'];
 const darkTheme = {
 	layout: {
@@ -55,7 +60,9 @@ export function Toolbar({
 	showDetails,
 	setShowDetails,
 	showOverlay,
-	setShowOverlay
+	setShowOverlay,
+	timezone,
+	setTimezone,
 }) {
 	const [percent, setPercent] = useState(false);
 	const [dark, setDark] = useState(window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
@@ -94,6 +101,11 @@ export function Toolbar({
 
 			<div class="toolbar-spacer" />
 
+			<select value={timezone} onChange={ev => setTimezone(ev.target.value)}>
+				{timezones.map(v =>
+					<option value={v}>{v}</option>
+				)}
+			</select>
 			<button onClick={() => setPercent(!percent)}>
 				{percent ? <b>%</b> : '%'}
 			</button>

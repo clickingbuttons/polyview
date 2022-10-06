@@ -167,7 +167,7 @@ export function Chart({ apiKey }) {
 			setFitContent(false);
 			setReachedEnd(false);
 		}
-	}, [aggs]);
+	}, [aggs, timezone]);
 
 	// infinite scrolling back
 	const [reachedEnd, setReachedEnd] = useState(false);
@@ -351,6 +351,8 @@ export function Chart({ apiKey }) {
 					setShowDetails={setShowDetails}
 					showOverlay={showOverlay}
 					setShowOverlay={setShowOverlay}
+					timezone={timezone}
+					setTimezone={setTimezone}
 				/>
 				<div id="chart" ref={div}>
 					<div id="chart-overlay">

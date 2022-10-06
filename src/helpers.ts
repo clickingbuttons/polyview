@@ -1,7 +1,7 @@
 import { MouseEventParams, BarPrices, BarPrice } from 'lightweight-charts';
 import { IRestClient } from '@polygon.io/client-js';
 import { Timespan } from './toolbar';
-import { getTimezoneOffset } from 'date-fns-tz';
+import { getTimezoneOffset, zonedTimeToUtc } from 'date-fns-tz';
 
 function humanize(val: number, scale: string[]) {
 	const thresh = 1000;
@@ -102,10 +102,11 @@ export async function fetchAggs(rest: IRestClient, ticker: string, multiplier: n
 			if (!resp.results || resp.results.length === 0)
 				return [];
 
-			// Normalize agg timestamp to 16:00 because Polygon returns 16:00 or 20:00
-			if (timespan === 'day')  {
+			// Normalize agg timestamp to 16:00EST because Polygon doesn't
+			const market = getTickerMarket(ticker);
+			if (timespan === 'day' && market === 'stocks')  {
 				resp.results.forEach(agg => {
-					agg.t = toStartOfTimespan(agg.t, timespan, multiplier) + getTimespanMS('hour') * 20;
+					agg.t = zonedTimeToUtc(toStartOfTimespan(agg.t, timespan, multiplier) + getTimespanMS('hour') * 20, 'America/New_York').getTime();
 				});
 			}
 			const firstMS = resp.results[resp.results.length - 1].t;
@@ -113,15 +114,13 @@ export async function fetchAggs(rest: IRestClient, ticker: string, multiplier: n
 			console.log(firstMS, lastMS);
 			const res = [] as Aggregate[];
 
-			const market = getTickerMarket(ticker);
 			let j = resp.results.length - 1;
 			for (var ms = firstMS; ms <= lastMS; ms += getTimespanMS(timespan) * multiplier) {
 				const bar = resp.results[j];
 				const barMatches = bar.t === ms;
 
 				if (market === 'stocks') {
-					const offsetMS = getTimezoneOffset('America/New_York', ms);
-					const date = new Date(ms + offsetMS);
+					const date = new Date(ms);
 					if (['minute', 'hour', 'day'].includes(timespan)) {
 						if (isMarketHoliday(date)) {
 							if (barMatches) {
