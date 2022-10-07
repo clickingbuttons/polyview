@@ -1,7 +1,7 @@
 import { MouseEventParams, BarPrices, BarPrice } from 'lightweight-charts';
 import { IRestClient } from '@polygon.io/client-js';
 import { Timespan } from './toolbar';
-import { getTimezoneOffset, zonedTimeToUtc } from 'date-fns-tz';
+import { getTimezoneOffset } from 'date-fns-tz';
 
 function humanize(val: number, scale: string[]) {
 	const thresh = 1000;
@@ -106,34 +106,37 @@ export async function fetchAggs(rest: IRestClient, ticker: string, multiplier: n
 			const market = getTickerMarket(ticker);
 			if (timespan === 'day' && market === 'stocks')  {
 				resp.results.forEach(agg => {
-					agg.t = zonedTimeToUtc(toStartOfTimespan(agg.t, timespan, multiplier) + getTimespanMS('hour') * 20, 'America/New_York').getTime();
+					const normalizedMS = toStartOfTimespan(agg.t, timespan, multiplier) + getTimespanMS('hour') * 20;
+					agg.t = convertTZ(new Date(normalizedMS), 'America/New_York').getTime();
 				});
 			}
 			const firstMS = resp.results[resp.results.length - 1].t;
 			const lastMS = resp.results[0].t;
-			console.log(firstMS, lastMS);
+			//console.log(firstMS, lastMS);
 			const res = [] as Aggregate[];
 
 			let j = resp.results.length - 1;
 			for (var ms = firstMS; ms <= lastMS; ms += getTimespanMS(timespan) * multiplier) {
 				const bar = resp.results[j];
-				const barMatches = bar.t === ms;
+				const barMatches = toStartOfTimespan(bar.t, timespan, multiplier) === toStartOfTimespan(ms, timespan, multiplier);
 
-				if (market === 'stocks') {
+				if (market === 'stocks' && !(timespan === 'day' && multiplier !== 1)) {
 					const date = new Date(ms);
 					if (['minute', 'hour', 'day'].includes(timespan)) {
 						if (isMarketHoliday(date)) {
 							if (barMatches) {
-								console.error('agg returned on holiday', date.getTime(), bar);
+								console.warn('agg returned on holiday', bar.t, '=', new Date(bar.t));
+								j -= 1;
 							}
 							continue;
 						}
 					}
 					if (['minute', 'hour'].includes(timespan)) {
-						const hour = date.getUTCHours();
+						const hour = convertTZ(date, 'America/New_York').getUTCHours();
 						if (hour < 4 || hour >= 20) {
 							if (barMatches) {
-								console.error('agg returned during market close', date.getTime(), bar);
+								console.warn('agg returned during market close', bar.t, '=', new Date(bar.t));
+								j -= 1;
 							}
 							continue;
 						}
@@ -158,7 +161,7 @@ export async function fetchAggs(rest: IRestClient, ticker: string, multiplier: n
 				res.push(newBar);
 			}
 
-			console.log(res, resp.results);
+			//console.log(res, resp.results);
 			return res;
 		});
 }
