@@ -126,9 +126,9 @@ export async function fetchAggs(rest: IRestClient, ticker: string, multiplier: n
 						if (isMarketHoliday(date)) {
 							if (barMatches) {
 								console.warn('agg returned on holiday', bar.t, '=', new Date(bar.t));
-								j -= 1;
+							} else {
+								continue;
 							}
-							continue;
 						}
 					}
 					if (['minute', 'hour'].includes(timespan)) {
@@ -136,9 +136,9 @@ export async function fetchAggs(rest: IRestClient, ticker: string, multiplier: n
 						if (hour < 4 || hour >= 20) {
 							if (barMatches) {
 								console.warn('agg returned during market close', bar.t, '=', new Date(bar.t));
-								j -= 1;
+							} else {
+								continue;
 							}
-							continue;
 						}
 					}
 				}
@@ -230,11 +230,11 @@ export function aggBar(lastBar: Aggregate, epochMS: number, price: number, size:
 		return {
 			time: time,
 			open: lastBar.open,
-			high: lastBar.high,
-			low: lastBar.low,
+			high: (price > lastBar.high) ? price : lastBar.high,
+			low: (price < lastBar.low) ? price : lastBar.low,
 			close: price,
 			volume: lastBar.volume + size,
-			liquidity: lastBar.liquidity,
+			liquidity: lastBar.liquidity + price * size,
 			vwap: (lastBar.liquidity + price * size) / (lastBar.volume + size)
 		};
 	}
@@ -257,15 +257,37 @@ export interface Trade {
 	conditions: number[];
 }
 
-export function isEligible(t: Trade): Boolean {
+const badLastConditions = [30, 16, 22, 33, 13, 10];
+const badVolumeConditions = [15, 16, 38];
+
+export function updateHighLow(t: Trade): Boolean {
+	for (var i = 0; i < t.conditions.length; i++) {
+		if (badLastConditions.includes(t.conditions[i])) {
+			return false;
+		}
+	}
+	return true;
+}
+
+export function updateVolume(t: Trade): Boolean {
+	for (var i = 0; i < t.conditions.length; i++) {
+		if (badVolumeConditions.includes(t.conditions[i])) {
+			return false;
+		}
+	}
 	return true;
 }
 
 // Assumes all trades are in window.
-export function aggTrades(trades: Trade[], time: number): Aggregate | undefined {
+export function aggTrades(trades: Trade[], time: number, ticker: string): Aggregate | undefined {
 	let res = {} as Aggregate;
+	const market = getTickerMarket(ticker);
 
-	trades.filter(isEligible).forEach(t => {
+	if (market === 'stocks') {
+		trades = trades.filter(updateHighLow);
+	}
+
+	trades.forEach(t => {
 		if (res.open === 0) {
 			res = {
 				time: time,
@@ -279,8 +301,10 @@ export function aggTrades(trades: Trade[], time: number): Aggregate | undefined 
 			};
 		} else {
 			res.liquidity += t.size * t.price;
-			res.volume += t.size;
-			res.vwap = res.liquidity / res.volume;
+			if (updateVolume(t)) {
+				res.volume += t.size;
+				res.vwap = res.liquidity / res.volume;
+			}
 			res.close = t.price;
 			if (t.price > res.high) {
 				res.high = t.price;

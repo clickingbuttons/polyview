@@ -7,6 +7,32 @@ import { TickerDetails } from './tickerdetails';
 import { toymd, fetchAggs, getTimespanMS, getWSTicker, getOverlay, Aggregate, aggBar, getTickerMarket, convertTZ } from './helpers';
 import './chart.css';
 
+function toCandlestickData(a: Aggregate): CandlestickData {
+	const res = a as unknown /* for time: UTCTimestamp */ as CandlestickData;
+	if (res.open) {
+		res.color = a.open < a.close ? 'rgba(0, 150, 136, 0.8)' : 'rgba(255,82,82, 0.8)';
+	}
+	return res;
+}
+
+function toHistogram(a: Aggregate): HistogramData {
+	const res = { time: a.time } as HistogramData;
+	if (a.volume) {
+		res.value = a.volume;
+		res.color = a.open < a.close ? 'rgba(0, 150, 136, 0.8)' : 'rgba(255,82,82, 0.8)';
+	}
+	return res;
+}
+
+function toHistogramVWAP(a: Aggregate): HistogramData {
+	const res = { time: a.time } as HistogramData;
+	if (a.vwap) {
+		res.value = a.vwap;
+		res.color = 'purple';
+	}
+	return res;
+}
+
 export function Chart({ apiKey }) {
 	// lightweight-charts
 	const div = useRef();
@@ -62,9 +88,9 @@ export function Chart({ apiKey }) {
 	const [aggs, setAggs] = useState([] as Aggregate[]);
 	const [fitContent, setFitContent] = useState(false);
 	// data picker
-	const [ticker, setTicker] = useState('AAPL');
+	const [ticker, setTicker] = useState('X:BTCUSD');
 	const [multiplier, setMultiplier] = useState(1);
-	const [timespan, setTimespan] = useState<Timespan>('day');
+	const [timespan, setTimespan] = useState<Timespan>('minute');
 	const [date, setDate] = useState(toymd(new Date()));
 	const [timezone, setTimezone] = useState('America/New_York');
 	const [showDetails, setShowDetails] = useState(true);
@@ -109,6 +135,31 @@ export function Chart({ apiKey }) {
 	}, [ticker, multiplier, timespan, date]);
 
 	// Update series + view + crosshair
+	function updateSeriesData(series: ISeriesApi<any>[], newAggs: Aggregate[], update: Boolean) {
+		// convert ts
+		const timezoneAggs = newAggs.map(agg => ({
+			...agg,
+			time: convertTZ(new Date(agg.time), timezone).getTime() / 1000 as UTCTimestamp,
+		}));
+		// candle
+		if (update) {
+			series[0].update(toCandlestickData(timezoneAggs[0]));
+		} else {
+			series[0].setData(timezoneAggs.map(toCandlestickData));
+		}
+		// volume
+		if (update) {
+			series[1].update(toHistogram(timezoneAggs[0]));
+		} else {
+			series[1].setData(timezoneAggs.map(toHistogram));
+		}
+		// vwap 
+		if (update) {
+			series[2].update(toHistogramVWAP(timezoneAggs[0]));
+		} else {
+			series[2].setData(timezoneAggs.map(toHistogramVWAP));
+		}
+	}
 	useEffect(() => {
 		if (!chart) {
 			return;
@@ -131,37 +182,7 @@ export function Chart({ apiKey }) {
 			series.push(chart.addLineSeries());
 			setSeries(series);
 		}
-		// convert ts
-		const timezoneAggs = aggs.map(agg => ({
-			...agg,
-			time: convertTZ(new Date(agg.time), timezone).getTime() / 1000 as UTCTimestamp,
-		}));
-		// candle
-		series[0].setData(timezoneAggs.map(a => {
-			const res = a as unknown /* for time: UTCTimestamp */ as CandlestickData;
-			if (res.open) {
-				res.color = a.open < a.close ? 'rgba(0, 150, 136, 0.8)' : 'rgba(255,82,82, 0.8)';
-			}
-			return res;
-		}));
-		// volume
-		series[1].setData(timezoneAggs.map(a => {
-			const res = { time: a.time } as HistogramData;
-			if (a.volume) {
-				res.value = a.volume;
-				res.color = a.open < a.close ? 'rgba(0, 150, 136, 0.8)' : 'rgba(255,82,82, 0.8)';
-			}
-			return res;
-		}));
-		// vwap 
-		series[2].setData(timezoneAggs.map(a => {
-			const res = { time: a.time } as HistogramData;
-			if (a.vwap) {
-				res.value = a.vwap;
-				res.color = 'purple';
-			}
-			return res;
-		}));
+		updateSeriesData(series,aggs, false);
 		if (fitContent) {
 			chart.timeScale().fitContent();
 			setFitContent(false);
@@ -230,7 +251,7 @@ export function Chart({ apiKey }) {
 		if (!live || multiplier !== 1 || timespan !== 'minute') {
 			return;
 		}
-		console.log('live');
+		console.log('live', ticker);
 		const ws = websocketClient(apiKey);
 		let client: WebSocket;
 		let topic: string;
@@ -239,7 +260,7 @@ export function Chart({ apiKey }) {
 		switch (getTickerMarket(ticker)) {
 			case 'crypto':
 			client = ws.crypto();
-			topic = 'XA'; // 'XT';
+			topic = 'XT';
 			// todo: get all trades in period + agg them
 			//lastAgg = rest.crypto.trades(ticker)
 			//	.then(res => res.results.map(t => ({
@@ -251,7 +272,7 @@ export function Chart({ apiKey }) {
 			break;
 			case 'options':
 			client = ws.options();
-			topic = 'AM'; //'T';
+			topic = 'T';
 			break;
 			case 'forex':
 			client = ws.forex();
@@ -259,7 +280,7 @@ export function Chart({ apiKey }) {
 			break;
 			case 'stocks':
 			client = ws.stocks();
-			topic = 'AM'; //'T';
+			topic = 'T';
 			break;
 		}
 
@@ -305,20 +326,16 @@ export function Chart({ apiKey }) {
 					break;
 				case 'T':
 				case 'XT':
-					const oldBar = aggs[aggs.length - 1];
+					const oldBar = aggs.length === 0 ? { time: 0 } as Aggregate : aggs[aggs.length - 1];
 					const newBar = aggBar(oldBar, message.t, message.p, message.s, timespan, multiplier);
+					if (oldBar.time !== newBar.time) {
+						aggs.push(newBar);
+					} else {
+						aggs[aggs.length - 1] = newBar;
+					}
+					updateSeriesData(series, [newBar], true);
 					// newBar.color = newBar.open < newBar.close ? 'rgba(0, 150, 136, 0.8)' : 'rgba(255,82,82, 0.8)';
 					// newBar.value = newBar.volume;
-					console.log('update', oldBar, newBar);
-					// candlestick
-					series[0].update(newBar);
-					// volume
-					series[1].update(newBar);
-					// vwap
-					series[2].update({
-						time: newBar.time,
-						value: newBar.vwap
-					});
 					break;
 				default:
 					break;
@@ -326,10 +343,10 @@ export function Chart({ apiKey }) {
 		};
 
 		return () => {
-			console.log('not live');
+			console.log('not live', ticker);
 			client.close();
 		};
-	}, [ticker, live]);
+	}, [series, live]);
 
 	return (
 		<Split>
