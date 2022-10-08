@@ -1,5 +1,6 @@
 #toolbar {
 	display: flex;
+	flex-wrap: wrap;
 }
 
 .multiplier {
@@ -8,4 +9,8 @@
 
 .toolbar-spacer {
 	flex-grow: 1;
+}
+
+.toolbar-buttons {
+	display: flex;
 }

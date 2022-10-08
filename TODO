@@ -1,0 +1,11 @@
+Bugfixes
+========
+- [ ] Agg bars between load and live
+- [x] Button tooltips
+
+Features
+========
+- [ ] Trades as dots
+- [x] Split markers
+- [x] Goto live
+

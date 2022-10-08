@@ -1,4 +1,4 @@
-import { createChart, ChartOptions, DeepPartial, IChartApi, ISeriesApi, MouseEventParams, UTCTimestamp, CandlestickData, HistogramData } from 'lightweight-charts';
+import { createChart, ChartOptions, DeepPartial, IChartApi, ISeriesApi, MouseEventParams, UTCTimestamp, CandlestickData, HistogramData, SeriesMarker, Time } from 'lightweight-charts';
 import { restClient, websocketClient } from '@polygon.io/client-js';
 import { useRef, useEffect, useState, useMemo } from 'preact/hooks';
 import { Toolbar, Timespan } from './toolbar';
@@ -88,13 +88,14 @@ export function Chart({ apiKey }) {
 	const [aggs, setAggs] = useState([] as Aggregate[]);
 	const [fitContent, setFitContent] = useState(false);
 	// data picker
-	const [ticker, setTicker] = useState('X:BTCUSD');
+	const [ticker, setTicker] = useState('AAPL');
 	const [multiplier, setMultiplier] = useState(1);
 	const [timespan, setTimespan] = useState<Timespan>('minute');
 	const [date, setDate] = useState(toymd(new Date()));
 	const [timezone, setTimezone] = useState('America/New_York');
-	const [showDetails, setShowDetails] = useState(true);
+	const [showDetails, setShowDetails] = useState(window.innerWidth > 1400);
 	useEffect(onResize, [showDetails]); // Resize on show/hide side pane
+	const [showMarkers, setShowMarkers] = useState(true);
 
 	function setStatus(text: string, color: string = 'white') {
 		if (chart) {
@@ -133,6 +134,34 @@ export function Chart({ apiKey }) {
 
 		return () => isSubbed = false;
 	}, [ticker, multiplier, timespan, date]);
+
+	// Update markers
+	useEffect(() => {
+		if (!showMarkers && series.length > 0) {
+			series[0].setMarkers([]);
+			return;
+		}
+		if (aggs.length === 0 || series.length === 0 || !showMarkers || getTickerMarket(ticker) !== 'stocks') {
+			return;
+		}
+		rest.reference.stockSplits({ ticker, sort: 'execution_date', limit: 1000 })
+			.then(res => {
+				if (!res.results) {
+					return;
+				}
+				const markers = res.results
+					.reverse()
+					.filter(s => new Date(s.execution_date).getTime() > aggs[0].time)
+					.map(s => ({
+						time: convertTZ(new Date(s.execution_date), timezone).getTime() / 1000 as UTCTimestamp,
+						position: 'aboveBar',
+						shape: 'arrowDown',
+						text: `${s.split_from} for ${s.split_to} split`
+					} as SeriesMarker<Time>));
+
+				series[0].setMarkers(markers);
+			});
+	}, [ticker, series, aggs, showMarkers]);
 
 	// Update series + view + crosshair
 	function updateSeriesData(series: ISeriesApi<any>[], newAggs: Aggregate[], update: Boolean) {
@@ -370,11 +399,26 @@ export function Chart({ apiKey }) {
 					setShowOverlay={setShowOverlay}
 					timezone={timezone}
 					setTimezone={setTimezone}
+					showMarkers={showMarkers}
+					setShowMarkers={setShowMarkers}
 				/>
 				<div id="chart" ref={div}>
-					<div id="chart-overlay">
-						{showOverlay && getOverlay(hover)}
-					</div>
+					{showOverlay && (
+						<>
+							<div class="chart-overlay chart-overlay-ohlcv">
+								{getOverlay(hover)}
+							</div>
+							{div.current && chart && chart.timeScale().scrollPosition() < 0 && (
+								<div class="chart-overlay chart-overlay-goto-recent">
+									<button title="Goto recent" onClick={() => chart.timeScale().scrollToRealTime()}>
+										<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 14 14" width="14" height="14">
+											<path fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="2" d="M6.5 1.5l5 5.5-5 5.5M3 4l2.5 3L3 10" />
+										</svg>
+									</button>
+								</div>
+							)}
+						</>
+					)}
 				</div>
 			</SplitItem>
 			{showDetails && 

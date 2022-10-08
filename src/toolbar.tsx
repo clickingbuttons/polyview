@@ -63,6 +63,8 @@ export function Toolbar({
 	setShowOverlay,
 	timezone,
 	setTimezone,
+	showMarkers,
+	setShowMarkers,
 }) {
 	const [percent, setPercent] = useState(false);
 	const [dark, setDark] = useState(window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
@@ -101,32 +103,37 @@ export function Toolbar({
 
 			<div class="toolbar-spacer" />
 
-			<select value={timezone} onChange={ev => setTimezone(ev.target.value)}>
-				{timezones.map(v =>
-					<option value={v}>{v}</option>
-				)}
-			</select>
-			<button onClick={() => setPercent(!percent)}>
-				{percent ? <b>%</b> : '%'}
-			</button>
-			<button onClick={() => setLive(!live)}>
-				{live ? <b>L</b> : 'L'}
-			</button>
-			<button onClick={() => setDark(!dark)}>
-				{dark ? <b>D</b> : 'D'}
-			</button>
-			<button onClick={() => setShowOverlay(!showOverlay)}>
-				{showOverlay ? <b>O</b> : 'O'}
-			</button>
-			<button onClick={() => setShowDetails(!showDetails)}>
-				<svg width="0.8rem" height="0.8rem" viewBox="0 0 72 72">
-					<g id="line">
-						<line x1="16" x2="56" y1="26" y2="26" fill="none" stroke="#000000" stroke-linecap="round" stroke-linejoin="round" stroke-miterlimit="10" stroke-width="2"/>
-						<line x1="16" x2="56" y1="36" y2="36" fill="none" stroke="#000000" stroke-linecap="round" stroke-linejoin="round" stroke-miterlimit="10" stroke-width="2"/>
-						<line x1="16" x2="56" y1="46" y2="46" fill="none" stroke="#000000" stroke-linecap="round" stroke-linejoin="round" stroke-miterlimit="10" stroke-width="2"/>
-					</g>
-				</svg>
-			</button>
+			<div class="toolbar-buttons" >
+				<select value={timezone} onChange={ev => setTimezone(ev.target.value)}>
+					{timezones.map(v =>
+						<option value={v}>{v}</option>
+					)}
+				</select>
+				<button title="Use % for price" onClick={() => setPercent(!percent)}>
+					{percent ? <b>%</b> : '%'}
+				</button>
+				<button title="Live data" onClick={() => setLive(!live)}>
+					{live ? <b>L</b> : 'L'}
+				</button>
+				<button title="Toggle dark mode" onClick={() => setDark(!dark)}>
+					{dark ? <b>D</b> : 'D'}
+				</button>
+				<button title="Toggle OHLCV overlay" onClick={() => setShowOverlay(!showOverlay)}>
+					{showOverlay ? <b>O</b> : 'O'}
+				</button>
+				<button title="Toggle display markers" onClick={() => setShowMarkers(!showMarkers)}>
+					{showOverlay ? <b>M</b> : 'M'}
+				</button>
+				<button title="Toggle show details" onClick={() => setShowDetails(!showDetails)}>
+					<svg xmlns="http://www.w3.org/2000/svg" width="0.8rem" height="0.8rem" viewBox="0 0 72 72">
+						<g id="line">
+							<line x1="16" x2="56" y1="26" y2="26" fill="none" stroke="#000000" stroke-linecap="round" stroke-linejoin="round" stroke-miterlimit="10" stroke-width="2"/>
+							<line x1="16" x2="56" y1="36" y2="36" fill="none" stroke="#000000" stroke-linecap="round" stroke-linejoin="round" stroke-miterlimit="10" stroke-width="2"/>
+							<line x1="16" x2="56" y1="46" y2="46" fill="none" stroke="#000000" stroke-linecap="round" stroke-linejoin="round" stroke-miterlimit="10" stroke-width="2"/>
+						</g>
+					</svg>
+				</button>
+			</div>
 		</div>
 	);
 }

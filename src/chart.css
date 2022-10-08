@@ -3,11 +3,20 @@
 	position: relative;
 }
 
-#chart-overlay {
+.chart-overlay {
 	position: absolute;
 	z-index: 10;
-	left: 64px;
 	padding: .5rem;
+}
+
+.chart-overlay-ohlcv {
+	left: 64px;
+}
+
+.chart-overlay-goto-recent {
+	left: calc(100% - 30px - 11px);
+	top: calc(100% - 23px - 1.5px);
+	padding: 0;
 }
 
 .tv-lightweight-charts {
