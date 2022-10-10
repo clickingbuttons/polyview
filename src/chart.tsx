@@ -95,7 +95,7 @@ export function Chart({ apiKey }) {
 	const [timezone, setTimezone] = useState('America/New_York');
 	const [showDetails, setShowDetails] = useState(window.innerWidth > 1400);
 	useEffect(onResize, [showDetails]); // Resize on show/hide side pane
-	const [showMarkers, setShowMarkers] = useState(true);
+	const [showMarkers, setShowMarkers] = useState(false);
 
 	function setStatus(text: string, color: string = 'white') {
 		if (chart) {
@@ -111,7 +111,7 @@ export function Chart({ apiKey }) {
 
 	// Update data
 	useEffect(() => {
-		let isSubbed = true;
+		let isLoading = true;
 		if (!ticker) {
 			setStatus('No ticker');
 		}
@@ -120,7 +120,7 @@ export function Chart({ apiKey }) {
 		setStatus(`Loading ${ticker}...`);
 		fetchAggs(rest, ticker, multiplier, timespan, date)
 			.then(candles => {
-				if (!isSubbed) {
+				if (!isLoading) {
 					return;
 				}
 				if (candles.length > 0) {
@@ -132,8 +132,25 @@ export function Chart({ apiKey }) {
 				}
 			});
 
-		return () => isSubbed = false;
+		return () => isLoading = false;
 	}, [ticker, multiplier, timespan, date]);
+
+	async function refresh() {
+		let isLoading = true;
+
+		setStatus(`Refreshing ${ticker}...`);
+		return fetchAggs(rest, ticker, multiplier, timespan, date)
+			.then(candles => {
+				if (!isLoading) {
+					return;
+				}
+				candles = candles.filter(c => c.time > aggs[aggs.length - 1].time);
+				if (candles.length > 0) {
+					updateSeriesData(series, candles, true);
+				}
+				setStatus('');
+			});
+	}
 
 	// Update markers
 	useEffect(() => {
@@ -182,19 +199,19 @@ export function Chart({ apiKey }) {
 		}));
 		// candle
 		if (update) {
-			series[0].update(toCandlestickData(timezoneAggs[0]));
+			timezoneAggs.forEach(a => series[0].update(toCandlestickData(a)));
 		} else {
 			series[0].setData(timezoneAggs.map(toCandlestickData));
 		}
 		// volume
 		if (update) {
-			series[1].update(toHistogram(timezoneAggs[0]));
+			timezoneAggs.forEach(a => series[1].update(toHistogram(a)));
 		} else {
 			series[1].setData(timezoneAggs.map(toHistogram));
 		}
 		// vwap 
 		if (update) {
-			series[2].update(toHistogramVWAP(timezoneAggs[0]));
+			timezoneAggs.forEach(a => series[2].update(toHistogramVWAP(a)));
 		} else {
 			series[2].setData(timezoneAggs.map(toHistogramVWAP));
 		}
@@ -290,6 +307,7 @@ export function Chart({ apiKey }) {
 		if (!live || multiplier !== 1 || timespan !== 'minute') {
 			return;
 		}
+		refresh();
 		console.log('live', ticker);
 		const ws = websocketClient(apiKey);
 		let client: WebSocket;
@@ -411,6 +429,7 @@ export function Chart({ apiKey }) {
 					setTimezone={setTimezone}
 					showMarkers={showMarkers}
 					setShowMarkers={setShowMarkers}
+					onRefresh={refresh}
 				/>
 				<div id="chart" ref={div}>
 					{showOverlay && (
