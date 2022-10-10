@@ -144,23 +144,33 @@ export function Chart({ apiKey }) {
 		if (aggs.length === 0 || series.length === 0 || !showMarkers || getTickerMarket(ticker) !== 'stocks') {
 			return;
 		}
-		rest.reference.stockSplits({ ticker, sort: 'execution_date', limit: 1000 })
-			.then(res => {
-				if (!res.results) {
-					return;
-				}
-				const markers = res.results
-					.reverse()
-					.filter(s => new Date(s.execution_date).getTime() > aggs[0].time)
-					.map(s => ({
+		Promise.all([
+			rest.reference.stockSplits({ ticker, limit: 1000 }),
+			rest.reference.dividends({ ticker, limit: 1000 }),
+		]).then(([splits, dividends]) => {
+			const markers = [] as SeriesMarker<Time>[];
+			if (splits.results) {
+				splits.results
+					.forEach(s => markers.push({
 						time: convertTZ(new Date(s.execution_date), timezone).getTime() / 1000 as UTCTimestamp,
 						position: 'aboveBar',
 						shape: 'arrowDown',
 						text: `${s.split_from} for ${s.split_to} split`
 					} as SeriesMarker<Time>));
+			}
+			if (dividends.results) {
+				dividends.results
+					.forEach(d => markers.push({
+						time: convertTZ(new Date(d.ex_dividend_date), timezone).getTime() / 1000 as UTCTimestamp,
+						position: 'aboveBar',
+						shape: 'arrowDown',
+						text: `${d.dividend_type} ${d.cash_amount}`
+					} as SeriesMarker<Time>));
+			}
 
-				series[0].setMarkers(markers);
-			});
+			markers.sort((a, b) => a.time > b.time ? 1 : -1);
+			series[0].setMarkers(markers);
+		});
 	}, [ticker, series, aggs, showMarkers]);
 
 	// Update series + view + crosshair
