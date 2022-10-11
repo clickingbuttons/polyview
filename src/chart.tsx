@@ -165,14 +165,14 @@ export function Chart({ apiKey }) {
 			rest.reference.stockSplits({ ticker, limit: 1000 }),
 			rest.reference.dividends({ ticker, limit: 1000 }),
 		]).then(([splits, dividends]) => {
-			const markers = [] as SeriesMarker<Time>[];
+			let markers = [] as SeriesMarker<Time>[];
 			if (splits.results) {
 				splits.results
 					.forEach(s => markers.push({
 						time: convertTZ(new Date(s.execution_date), timezone).getTime() / 1000 as UTCTimestamp,
 						position: 'aboveBar',
 						shape: 'arrowDown',
-						text: `${s.split_from} for ${s.split_to} split`
+						text: `${s.split_from} for ${s.split_to} split ${s.execution_date}`
 					} as SeriesMarker<Time>));
 			}
 			if (dividends.results) {
@@ -181,11 +181,16 @@ export function Chart({ apiKey }) {
 						time: convertTZ(new Date(d.ex_dividend_date), timezone).getTime() / 1000 as UTCTimestamp,
 						position: 'aboveBar',
 						shape: 'arrowDown',
-						text: `${d.dividend_type} ${d.cash_amount}`
+						text: `${d.dividend_type} ${d.cash_amount} ${d.ex_dividend_date}`
 					} as SeriesMarker<Time>));
 			}
 
-			markers.sort((a, b) => a.time > b.time ? 1 : -1);
+			markers = markers
+				.filter(m => {
+					const epochMS = m.time as number * 1000;
+					return epochMS > aggs[0].time && epochMS < aggs[aggs.length - 1].time;
+				})
+				.sort((a, b) => a.time > b.time ? 1 : -1);
 			series[0].setMarkers(markers);
 		});
 	}, [ticker, series, aggs, showMarkers]);
