@@ -3,28 +3,45 @@ import { useState, useEffect } from 'preact/hooks';
 import { isValidAPIKey, Signin } from './signin';
 import { Chart } from './chart';
 import { getCookie } from './cookies';
+import { Router, route } from 'preact-router';
+import { createHashHistory } from 'history';
+import { toymd } from './helpers';
 import './entry.css';
+
+function getHashUrl() {
+	const hash = location.href.replace(/^[^#]*/, '');
+	return hash.substring(1, hash.length);
+}
 
 function Main() {
 	const [apiKey, setAPIKey] = useState(getCookie('POLY_API_KEY'));
-	const [view, setView] = useState('');
+	const [preAuthUrl, setPreAuthUrl] = useState('');
 
 	useEffect(() => {
 		isValidAPIKey(apiKey).then(isValid => {
 			if (isValid) {
-				setView('chart');
+				if (preAuthUrl.startsWith('/chart')) {
+					route(preAuthUrl);
+				} else {
+					route(`/chart/AAPL/1/minute/${toymd(new Date())}`);
+				}
 			} else {
-				setView('signin');
+				setPreAuthUrl(getHashUrl());
+				route('/signin');
 			}
 		});
 	}, [apiKey]);
 
+	const MyRouter = Router as any;
+	const MyChart = Chart as any;
 	return (
-		<>
-			{view == '' && <div>Checking API key</div>}
-			{view == 'signin' && <Signin apiKey={apiKey} setAPIKey={setAPIKey} />}
-			{view == 'chart' && <Chart apiKey={apiKey} />}
-		</>
+		<MyRouter history={createHashHistory()}>
+			<div path="/">
+				Checking API key
+			</div>
+			<Signin path="/signin" apiKey={apiKey} setAPIKey={setAPIKey} />
+			<MyChart path="/chart/:ticker/:multiplier/:timespan/:date" apiKey={apiKey} />
+		</MyRouter>
 	);
 }
 

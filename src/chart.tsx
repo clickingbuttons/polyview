@@ -33,7 +33,14 @@ function toHistogramVWAP(a: Aggregate): HistogramData {
 	return res;
 }
 
-export function Chart({ apiKey }) {
+export function Chart({
+	path,
+	ticker,
+	multiplier,
+	timespan,
+	date,
+	apiKey
+}) {
 	// lightweight-charts
 	const div = useRef();
 	const [chart, setChart] = useState(null as IChartApi);
@@ -88,10 +95,6 @@ export function Chart({ apiKey }) {
 	const [aggs, setAggs] = useState([] as Aggregate[]);
 	const [fitContent, setFitContent] = useState(false);
 	// data picker
-	const [ticker, setTicker] = useState('AAPL');
-	const [multiplier, setMultiplier] = useState(1);
-	const [timespan, setTimespan] = useState<Timespan>('minute');
-	const [date, setDate] = useState(toymd(new Date()));
 	const [timezone, setTimezone] = useState('America/New_York');
 	const [showDetails, setShowDetails] = useState(window.innerWidth > 1400);
 	useEffect(onResize, [showDetails]); // Resize on show/hide side pane
@@ -172,7 +175,7 @@ export function Chart({ apiKey }) {
 						time: convertTZ(new Date(s.execution_date), timezone).getTime() / 1000 as UTCTimestamp,
 						position: 'aboveBar',
 						shape: 'arrowDown',
-						text: `${s.split_from} for ${s.split_to} split ${s.execution_date}`
+						text: `${s.split_from} for ${s.split_to} split`
 					} as SeriesMarker<Time>));
 			}
 			if (dividends.results) {
@@ -181,7 +184,7 @@ export function Chart({ apiKey }) {
 						time: convertTZ(new Date(d.ex_dividend_date), timezone).getTime() / 1000 as UTCTimestamp,
 						position: 'aboveBar',
 						shape: 'arrowDown',
-						text: `${d.dividend_type} ${d.cash_amount} ${d.ex_dividend_date}`
+						text: `${d.dividend_type} ${d.cash_amount}`
 					} as SeriesMarker<Time>));
 			}
 
@@ -418,13 +421,9 @@ export function Chart({ apiKey }) {
 					live={live}
 					setLive={setLive}
 					ticker={ticker}
-					setTicker={setTicker}
 					multiplier={multiplier}
-					setMultiplier={setMultiplier}
 					timespan={timespan}
-					setTimespan={setTimespan}
 					date={date}
-					setDate={setDate}
 					rest={rest}
 					showDetails={showDetails}
 					setShowDetails={setShowDetails}

@@ -9,7 +9,7 @@ export async function isValidAPIKey(apiKey: string): Promise<Boolean> {
 		.catch(() => false);
 }
 
-export function Signin({ apiKey, setAPIKey }) {
+export function Signin({ path, apiKey, setAPIKey }) {
 	const [error, setError] = useState('');
 
 	function onSubmit(ev: FormDataEvent) {

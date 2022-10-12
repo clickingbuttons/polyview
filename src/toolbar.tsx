@@ -1,6 +1,7 @@
 import { PriceScaleMode, DeepPartial, ChartOptions } from 'lightweight-charts';
 import { useState, useEffect } from 'preact/hooks';
 import { SymbolPicker } from './select';
+import { route } from 'preact-router';
 import './toolbar.css';
 
 export type Timespan = 'minute' | 'hour' | 'day' | 'week' | 'month' | 'quarter' | 'year';
@@ -46,17 +47,13 @@ const lightTheme = {
 
 export function Toolbar({
 	setOptions,
+	ticker,
+	multiplier,
+	timespan,
+	date,
+	rest,
 	live,
 	setLive,
-	ticker,
-	setTicker,
-	multiplier,
-	setMultiplier,
-	timespan,
-	setTimespan,
-	date,
-	setDate,
-	rest,
 	showDetails,
 	setShowDetails,
 	showOverlay,
@@ -91,16 +88,20 @@ export function Toolbar({
 		} as DeepPartial<ChartOptions>);
 	}, [percent, dark]);
 
+	function setRoute({ tick = ticker, mult = multiplier, time = timespan, d = date }) {
+		route(`/chart/${tick}/${mult}/${time}/${d}`);
+	}
+
 	return (
 		<div id="toolbar">
-			<SymbolPicker value={ticker} onChange={newTicker => setTicker(newTicker)} rest={rest} />
-			<input class="multiplier" min="1" onWheel={() => {}} type="number" value={multiplier} onChange={ev => setMultiplier(ev.target.value)} />
-			<select value={timespan} onChange={ev => setTimespan(ev.target.value)}>
+			<SymbolPicker value={ticker} onChange={newTicker => setRoute({ tick: newTicker })} rest={rest} />
+			<input class="multiplier" min="1" onWheel={() => {}} type="number" value={multiplier} onChange={ev => setRoute({ mult: ev.target.value})} />
+			<select value={timespan} onChange={ev => setRoute({ time: ev.target.value })}>
 				{timespans.map(v =>
 					<option value={v}>{v}</option>
 				)}
 			</select>
-			<input value={date} onChange={ev => setDate(ev.target.value)} />
+			<input value={date} onChange={ev => setRoute({ d: ev.target.value })} />
 
 			<div class="toolbar-spacer" />
 
