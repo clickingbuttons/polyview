@@ -111,6 +111,10 @@ export function Chart({
 			});
 		}
 	}
+	multiplier = +multiplier;
+	if (Number.isNaN(multiplier)) {
+		setStatus(`Invalid multiplier ${multiplier}`);
+	}
 
 	// Update data
 	useEffect(() => {
