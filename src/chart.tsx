@@ -1,10 +1,10 @@
 import { createChart, ChartOptions, DeepPartial, IChartApi, ISeriesApi, MouseEventParams, UTCTimestamp, CandlestickData, HistogramData, SeriesMarker, Time } from 'lightweight-charts';
 import { restClient, websocketClient } from '@polygon.io/client-js';
 import { useRef, useEffect, useState, useMemo } from 'preact/hooks';
-import { Toolbar, Timespan } from './toolbar';
+import { Toolbar} from './toolbar';
 import { Split, SplitItem } from './split';
 import { TickerDetails } from './tickerdetails';
-import { toymd, fetchAggs, getTimespanMS, getWSTicker, getOverlay, Aggregate, aggBar, getTickerMarket, convertTZ } from './helpers';
+import { fetchAggs, getTimespanMS, getWSTicker, getOverlay, Aggregate, aggBar, getTickerMarket, convertTZ } from './helpers';
 import './chart.css';
 
 function toCandlestickData(a: Aggregate): CandlestickData {
