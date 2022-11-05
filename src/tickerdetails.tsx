@@ -19,7 +19,7 @@ export function TickerDetails({ rest, ticker }: TickerDetailsProps) {
 
 	return (
 		<div id="tickerdetails">
-			<h2>{ticker}</h2>
+			<h2 class="sidepanel-h2">{ticker}</h2>
 			<table>
 				<tr>
 					<td>Name</td>

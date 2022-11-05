@@ -6,6 +6,7 @@ export type SymbolPickerProps = {
 	rest: IRestClient;
 	value: any;
 	onChange: (value: any, ev: any) => void;
+	disabled: Boolean;
 };
 
 function debounce(func, timeout = 100){
@@ -16,7 +17,11 @@ function debounce(func, timeout = 100){
   };
 }
 
-export function SymbolPicker({ rest, value, onChange: userOnChange }: SymbolPickerProps) {
+export function SymbolPicker({
+	rest,
+	value,
+	onChange: userOnChange
+}: SymbolPickerProps) {
 	const [innerValue, setInnerValue] = useState(value);
 	const [items, setItems] = useState([]);
 	const [isOpen, setIsOpen] = useState(false);

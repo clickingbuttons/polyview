@@ -5,7 +5,8 @@ Bugfixes
 
 Features
 ========
-- [ ] Trades as dots
+- [ ] ~Trades as dots~ Not easily possible
 - [x] Split markers
 - [x] Goto live
+- [ ] Series picker
 

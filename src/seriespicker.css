@@ -1,0 +1,40 @@
+.seriesPicker {
+	flex-grow: 1;
+	overflow-y: auto;
+}
+
+.series-form table {
+	width: 100%;
+}
+
+.series-form input {
+	display: block;
+}
+
+.seriesPicker .select {
+	min-width: 300px;
+}
+
+.seriesSettings {
+	margin-top: 16px;
+	margin-bottom: 16px;
+}
+
+.truncate {
+	width: 100px;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.truncate:hover {
+	overflow: visible;
+	height: auto;
+	white-space: normal;
+}
+
+.sidepanel-h2 {
+	text-align: center;
+	font-size: 2rem;
+	margin-bottom: .5rem;
+}

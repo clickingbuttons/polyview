@@ -1,51 +1,28 @@
-import { createChart, ChartOptions, DeepPartial, IChartApi, ISeriesApi, MouseEventParams, UTCTimestamp, CandlestickData, HistogramData, SeriesMarker, Time } from 'lightweight-charts';
+import { createChart, ChartOptions, DeepPartial, IChartApi, MouseEventParams, UTCTimestamp, SeriesMarker, Time } from 'lightweight-charts';
 import { restClient, websocketClient } from '@polygon.io/client-js';
 import { useRef, useEffect, useState, useMemo } from 'preact/hooks';
 import { Toolbar} from './toolbar';
 import { Split, SplitItem } from './split';
 import { TickerDetails } from './tickerdetails';
 import { fetchAggs, getTimespanMS, getWSTicker, getOverlay, Aggregate, aggBar, getTickerMarket, convertTZ } from './helpers';
+import { SeriesPicker, updateTickerSeriesData, TickerSeries, toHistogram, toCandlestickData } from './seriespicker';
+import { GotoRecent } from './icons';
 import './chart.css';
-
-function toCandlestickData(a: Aggregate): CandlestickData {
-	const res = a as unknown /* for time: UTCTimestamp */ as CandlestickData;
-	if (res.open) {
-		res.color = a.open < a.close ? 'rgba(0, 150, 136, 0.8)' : 'rgba(255,82,82, 0.8)';
-	}
-	return res;
-}
-
-function toHistogram(a: Aggregate): HistogramData {
-	const res = { time: a.time } as HistogramData;
-	if (a.volume) {
-		res.value = a.volume;
-		res.color = a.open < a.close ? 'rgba(0, 150, 136, 0.8)' : 'rgba(255,82,82, 0.8)';
-	}
-	return res;
-}
-
-function toHistogramVWAP(a: Aggregate): HistogramData {
-	const res = { time: a.time } as HistogramData;
-	if (a.vwap) {
-		res.value = a.vwap;
-		res.color = 'purple';
-	}
-	return res;
-}
 
 export function Chart({
 	path,
+	apiKey,
+	/* from url */
 	ticker,
 	multiplier,
 	timespan,
-	date,
-	apiKey
+	date
 }) {
 	// lightweight-charts
 	const div = useRef();
 	const [chart, setChart] = useState(null as IChartApi);
 	const [options, setOptions] = useState({} as DeepPartial<ChartOptions>);
-	let [series, setSeries] = useState([] as ISeriesApi<any>[]);
+	let [tickerSeries, setTickerSeries] = useState({ ticker, series: [] } as TickerSeries);
 
 	// hover
 	const [showOverlay, setShowOverlay] = useState(true);
@@ -96,7 +73,7 @@ export function Chart({
 	const [fitContent, setFitContent] = useState(false);
 	// data picker
 	const [timezone, setTimezone] = useState('America/New_York');
-	const [showDetails, setShowDetails] = useState(window.innerWidth > 1400);
+	const [showDetails, setShowDetails] = useState(true || window.innerWidth > 1400);
 	useEffect(onResize, [showDetails]); // Resize on show/hide side pane
 	const [showMarkers, setShowMarkers] = useState(false);
 
@@ -153,7 +130,7 @@ export function Chart({
 				}
 				candles = candles.filter(c => c.time > aggs[aggs.length - 1].time);
 				if (candles.length > 0) {
-					updateSeriesData(series, candles, true);
+					updateTickerSeriesData(tickerSeries, candles, timezone, true);
 				}
 				setStatus('');
 			});
@@ -161,11 +138,11 @@ export function Chart({
 
 	// Update markers
 	useEffect(() => {
-		if (!showMarkers && series.length > 0) {
-			series[0].setMarkers([]);
+		if (!showMarkers && tickerSeries.series.length > 0) {
+			tickerSeries.series[0].series.setMarkers([]);
 			return;
 		}
-		if (aggs.length === 0 || series.length === 0 || !showMarkers || getTickerMarket(ticker) !== 'stocks') {
+		if (aggs.length === 0 || tickerSeries.series.length === 0 || !showMarkers || getTickerMarket(ticker) !== 'stocks') {
 			return;
 		}
 		Promise.all([
@@ -198,65 +175,44 @@ export function Chart({
 					return epochMS > aggs[0].time && epochMS < aggs[aggs.length - 1].time;
 				})
 				.sort((a, b) => a.time > b.time ? 1 : -1);
-			series[0].setMarkers(markers);
+			tickerSeries.series[0].series.setMarkers(markers);
 		});
-	}, [ticker, series, aggs, showMarkers]);
+	}, [ticker, tickerSeries, aggs, showMarkers]);
 
-	// Update series + view + crosshair
-	function updateSeriesData(series: ISeriesApi<any>[], newAggs: Aggregate[], update: Boolean) {
-		// convert ts
-		const timezoneAggs = newAggs.map(agg => ({
-			...agg,
-			time: convertTZ(new Date(agg.time), timezone).getTime() / 1000 as UTCTimestamp,
-		}));
-		// candle
-		if (update) {
-			timezoneAggs.forEach(a => series[0].update(toCandlestickData(a)));
-		} else {
-			series[0].setData(timezoneAggs.map(toCandlestickData));
-		}
-		// volume
-		if (update) {
-			timezoneAggs.forEach(a => series[1].update(toHistogram(a)));
-		} else {
-			series[1].setData(timezoneAggs.map(toHistogram));
-		}
-		// vwap 
-		if (update) {
-			timezoneAggs.forEach(a => series[2].update(toHistogramVWAP(a)));
-		} else {
-			series[2].setData(timezoneAggs.map(toHistogramVWAP));
-		}
-	}
 	useEffect(() => {
 		if (!chart) {
 			return;
 		}
 		if (aggs.length === 0) {
-			series.forEach(s => chart.removeSeries(s));
-			series = [];
-			setSeries([]);
+			tickerSeries.series.forEach(s => chart.removeSeries(s.series));
+			tickerSeries.series = [];
+			setTickerSeries(tickerSeries);
 		}
-		if (series.length === 0) {
-			series.push(chart.addCandlestickSeries());
-			series.push(chart.addHistogramSeries({
-				lastValueVisible: false,
-				priceLineVisible: false,
-				priceFormat: {
-					type: 'volume',
-				},
-				priceScaleId: 'left',
-			}));
-			series.push(chart.addLineSeries());
-			setSeries(series);
+		if (tickerSeries.series.length === 0) {
+			tickerSeries.series.push({
+				series: chart.addCandlestickSeries(),
+				transformer: toCandlestickData,
+			});
+			tickerSeries.series.push({
+				series: chart.addHistogramSeries({
+					lastValueVisible: false,
+					priceLineVisible: false,
+					priceFormat: {
+						type: 'volume',
+					},
+					priceScaleId: 'left',
+				}),
+				transformer: toHistogram,
+			});
+			setTickerSeries(tickerSeries);
 		}
-		updateSeriesData(series,aggs, false);
+		updateTickerSeriesData(tickerSeries, aggs, timezone, false);
 		if (fitContent) {
 			chart.timeScale().fitContent();
 			setFitContent(false);
 			setReachedEnd(false);
 		}
-	}, [aggs, timezone]);
+	}, [aggs, tickerSeries, timezone]);
 
 	// infinite scrolling back
 	const [reachedEnd, setReachedEnd] = useState(false);
@@ -267,11 +223,11 @@ export function Chart({
 		}
 		let isLoading = false;
 		function onRangeChange() {
-			if (isLoading || aggs.length === 0 || series.length === 0 || reachedEnd) {
+			if (isLoading || aggs.length === 0 || tickerSeries.series.length === 0 || reachedEnd) {
 				return;
 			}
 			const logicalRange = chart.timeScale().getVisibleLogicalRange();
-			const barsInfo = series[0].barsInLogicalRange(logicalRange);
+			const barsInfo = tickerSeries.series[0].series.barsInLogicalRange(logicalRange);
 			const loadBackwards = barsInfo && barsInfo.barsBefore < -10;
 			if (!barsInfo || !loadBackwards) {
 				return;
@@ -283,17 +239,11 @@ export function Chart({
 			let epochMS: number;
 			if (loadBackwards) {
 				epochMS = aggs[0].time - timespanMS;
-				// console.log('loading more bars before', epochMS, data[0].time);
 				setStatus(`Loading before ${new Date(epochMS).toISOString().substring(0, 10)}...`);
 			} else {
-				// TODO: get axis to not snap to newest date on load (which forces more data
-				// to have to be loaded)
 				isLoading = false;
 				chart.applyOptions({ handleScroll: true });
 				return;
-				//epochMS = data[data.length - 1].time as number * 1000 + getLocalOffsetMS() + timespanMS;
-				//console.log('need more bars after', new Date(epochMS).toISOString());
-				// setStatus(`Loading after ${new Date(epochMS).toISOString().substring(0, 10)}`, 'rgba(100, 100, 100, 0.3)');
 			}
 
 			fetchAggs(rest, ticker, multiplier, timespan, epochMS)
@@ -374,7 +324,7 @@ export function Chart({
 				case 'XA':
 					const time = message.s;
 					const	color = message.o < message.c ? 'rgba(0, 150, 136, 0.8)' : 'rgba(255,82,82, 0.8)';
-					series[0].update({
+					tickerSeries[0].update({
 						time: time,
 						open: message.o,
 						high: message.h,
@@ -382,12 +332,12 @@ export function Chart({
 						close: message.c,
 						color: color,
 					});
-					series[1].update({
+					tickerSeries[1].update({
 						time: time,
 						value: message.v,
 						color: color,
 					});
-					series[2].update({
+					tickerSeries[2].update({
 						time: time,
 						value: message.vw,
 						color: 'purple',
@@ -402,7 +352,7 @@ export function Chart({
 					} else {
 						aggs[aggs.length - 1] = newBar;
 					}
-					updateSeriesData(series, [newBar], true);
+					updateTickerSeriesData(tickerSeries, [newBar], timezone, true);
 					// newBar.color = newBar.open < newBar.close ? 'rgba(0, 150, 136, 0.8)' : 'rgba(255,82,82, 0.8)';
 					// newBar.value = newBar.volume;
 					break;
@@ -415,7 +365,7 @@ export function Chart({
 			console.log('not live', ticker);
 			client.close();
 		};
-	}, [series, live]);
+	}, [tickerSeries, live]);
 
 	return (
 		<Split>
@@ -448,9 +398,7 @@ export function Chart({
 							{div.current && chart && chart.timeScale().scrollPosition() < 0 && (
 								<div class="chart-overlay chart-overlay-goto-recent">
 									<button title="Goto recent" onClick={() => chart.timeScale().scrollToRealTime()}>
-										<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 14 14" width="14" height="14">
-											<path fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="2" d="M6.5 1.5l5 5.5-5 5.5M3 4l2.5 3L3 10" />
-										</svg>
+										<GotoRecent />
 									</button>
 								</div>
 							)}
@@ -459,9 +407,12 @@ export function Chart({
 				</div>
 			</SplitItem>
 			{showDetails && 
-				<SplitItem>
-					<TickerDetails rest={rest} ticker={ticker} />
-				</SplitItem>
+				<div class="sidepanel">
+					<SplitItem>
+						<TickerDetails rest={rest} ticker={ticker} />
+						<SeriesPicker rest={rest} ticker={ticker} chart={chart} series={tickerSeries} setSeries={setTickerSeries} />
+					</SplitItem>
+				</div>
 			}
 		</Split>
 	);
