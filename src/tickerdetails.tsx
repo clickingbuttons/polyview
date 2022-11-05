@@ -12,7 +12,9 @@ export function TickerDetails({ rest, ticker }: TickerDetailsProps) {
 	const [details, setDetails] = useState({} as ITickerDetails['results']);
 
 	useEffect(() => {
-		rest.reference.tickerDetails(ticker).then(res => setDetails(res.results));
+		rest.reference.tickerDetails(ticker)
+			.then(res => setDetails(res.results))
+			.catch(_ => setDetails({}));
 	}, [ticker]);
 
 	return (

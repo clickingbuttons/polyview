@@ -1,4 +1,4 @@
-import { MouseEventParams, BarPrices, BarPrice } from 'lightweight-charts';
+import { MouseEventParams, BarPrices, BarPrice, DeepPartial, ChartOptions } from 'lightweight-charts';
 import { IRestClient } from '@polygon.io/client-js';
 import { Timespan } from './toolbar';
 import { getTimezoneOffset } from 'date-fns-tz';
@@ -316,4 +316,47 @@ export function aggTrades(trades: Trade[], time: number, ticker: string): Aggreg
 
 	return res.open ? res : undefined;
 }
+
+export function isDark(): boolean {
+	return window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+}
+
+export function getVar(cssVar: string): string {
+	return getComputedStyle(document.body).getPropertyValue(cssVar);
+}
+
+export const getDarkTheme = () => ({
+	layout: {
+		backgroundColor: getVar('--bg'),
+		lineColor: '#2B2B43',
+		textColor: getVar('--fg'),
+	},
+	crosshair: {
+		color: '#758696',
+	},
+	grid: {
+		vertLines: {
+			color: '#2B2B43',
+		},
+		horzLines: {
+			color: getVar('--horz-line-color'),
+		},
+	},
+}) as DeepPartial<ChartOptions>;
+
+export const getLightTheme = () => ({
+	layout: {
+		backgroundColor: getVar('--bg'),
+		lineColor: '#2B2B43',
+		textColor: getVar('--fg'),
+	},
+	grid: {
+		vertLines: {
+			visible: false,
+		},
+		horzLines: {
+			color: getVar('--horz-line-color'),
+		},
+	},
+}) as DeepPartial<ChartOptions>;
 

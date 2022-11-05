@@ -5,8 +5,12 @@ import { Chart } from './chart';
 import { getCookie } from './cookies';
 import { Router, route } from 'preact-router';
 import { createHashHistory } from 'history';
-import { toymd } from './helpers';
+import { toymd, isDark } from './helpers';
 import './entry.css';
+
+if (isDark()) {
+	document.body.classList.replace('light', 'dark');
+}
 
 function getHashUrl() {
 	const hash = location.href.replace(/^[^#]*/, '');
@@ -46,6 +50,4 @@ function Main() {
 }
 
 render(<Main />, document.getElementById('app'));
-
-
 

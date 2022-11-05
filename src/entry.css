@@ -1,9 +1,38 @@
+:root {
+	--color-1: #fefcfb;
+	--color-2: #1282a2;
+	--color-3: #034078;
+	--color-4: #001f54;
+	--color-5: #0a1128;
+	--bg: var(--color-1);
+	--fg: var(--color-5);
+	--border-color: #ddd;
+
+	--horz-line-color: #f0f3fa;
+}
+
+.dark {
+	--bg: var(--color-5);
+	--fg: var(--color-1);
+	--border-color: var(--color-4);
+	--horz-line-color: #363C4E;
+}
+
 html, body, #app {
 	height: 100%;
-	background: #2B2B43;
-	color: #D9D9D9;
+	background: var(--bg);
+	color: var(--fg);
 	width: 100%;
 	height: 100vh;
+}
+
+.dark input,
+.dark select,
+.dark button
+{
+	background: var(--bg);
+	color: var(--fg);
+	border-color: var(--border-color);
 }
 
 #app {

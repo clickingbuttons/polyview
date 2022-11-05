@@ -1,6 +1,7 @@
 import { PriceScaleMode, DeepPartial, ChartOptions } from 'lightweight-charts';
 import { useState, useEffect } from 'preact/hooks';
 import { SymbolPicker } from './select';
+import { isDark, getDarkTheme, getLightTheme } from './helpers';
 import { route } from 'preact-router';
 import './toolbar.css';
 
@@ -11,39 +12,6 @@ const timezones = [
 	'UTC'
 ];
 const timespans: Timespan[] = ['minute', 'hour', 'day', 'week', 'month', 'quarter', 'year'];
-const darkTheme = {
-	layout: {
-		backgroundColor: '#2B2B43',
-		lineColor: '#2B2B43',
-		textColor: '#D9D9D9',
-	},
-	crosshair: {
-		color: '#758696',
-	},
-	grid: {
-		vertLines: {
-			color: '#2B2B43',
-		},
-		horzLines: {
-			color: '#363C4E',
-		},
-	},
-} as DeepPartial<ChartOptions>;
-const lightTheme = {
-	layout: {
-		backgroundColor: '#FFFFFF',
-		lineColor: '#2B2B43',
-		textColor: '#191919',
-	},
-	grid: {
-		vertLines: {
-			visible: false,
-		},
-		horzLines: {
-			color: '#f0f3fa',
-		},
-	},
-} as DeepPartial<ChartOptions>;
 
 export function Toolbar({
 	setOptions,
@@ -65,11 +33,15 @@ export function Toolbar({
 	onRefresh,
 }) {
 	const [percent, setPercent] = useState(false);
-	const [dark, setDark] = useState(window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
+	const [dark, setDark] = useState(isDark());
 
 	useEffect(() => {
+		if (dark)
+			document.body.classList.replace('light', 'dark');
+		else
+			document.body.classList.replace('dark', 'light');
 		setOptions({
-			...(dark ? darkTheme : lightTheme),
+			...(dark ? getDarkTheme() : getLightTheme()),
 			rightPriceScale: {
 				mode: percent ? PriceScaleMode.Percentage : PriceScaleMode.Normal,
 				scaleMargins: {
@@ -135,13 +107,7 @@ export function Toolbar({
 					{showMarkers ? <b>M</b> : 'M'}
 				</button>
 				<button title="Toggle show details" onClick={() => setShowDetails(!showDetails)}>
-					<svg xmlns="http://www.w3.org/2000/svg" width="0.8rem" height="0.8rem" viewBox="0 0 72 72">
-						<g id="line">
-							<line x1="16" x2="56" y1="26" y2="26" fill="none" stroke="#000000" stroke-linecap="round" stroke-linejoin="round" stroke-miterlimit="10" stroke-width="2"/>
-							<line x1="16" x2="56" y1="36" y2="36" fill="none" stroke="#000000" stroke-linecap="round" stroke-linejoin="round" stroke-miterlimit="10" stroke-width="2"/>
-							<line x1="16" x2="56" y1="46" y2="46" fill="none" stroke="#000000" stroke-linecap="round" stroke-linejoin="round" stroke-miterlimit="10" stroke-width="2"/>
-						</g>
-					</svg>
+					{showDetails ? <b>{'<'}</b> : '>'}
 				</button>
 			</div>
 		</div>
