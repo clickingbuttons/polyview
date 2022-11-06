@@ -4,7 +4,7 @@ import { useRef, useEffect, useState, useMemo } from 'preact/hooks';
 import { Toolbar} from './toolbar';
 import { Split, SplitItem } from './split';
 import { TickerDetails } from './tickerdetails';
-import { fetchAggs, getTimespanMS, getWSTicker, getOverlay, Aggregate, aggBar, getTickerMarket, convertTZ } from './helpers';
+import { fetchAggs, getTimespanMS, getWSTicker, getOverlay, Aggregate, aggBar, getTickerMarket, convertTZ, getVar } from './helpers';
 import { SeriesPicker, updateTickerSeriesData, TickerSeries, toHistogram, toCandlestickData } from './seriespicker';
 import { GotoRecent } from './icons';
 import './chart.css';
@@ -156,7 +156,9 @@ export function Chart({
 						time: convertTZ(new Date(s.execution_date), timezone).getTime() / 1000 as UTCTimestamp,
 						position: 'aboveBar',
 						shape: 'arrowDown',
-						text: `${s.split_from} for ${s.split_to} split`
+						text: `${s.split_from} for ${s.split_to} split`,
+						color: getVar('--fg'),
+
 					} as SeriesMarker<Time>));
 			}
 			if (dividends.results) {
@@ -165,7 +167,8 @@ export function Chart({
 						time: convertTZ(new Date(d.ex_dividend_date), timezone).getTime() / 1000 as UTCTimestamp,
 						position: 'aboveBar',
 						shape: 'arrowDown',
-						text: `${d.dividend_type} ${d.cash_amount}`
+						text: `${d.dividend_type} ${d.cash_amount}`,
+						color: getVar('--fg'),
 					} as SeriesMarker<Time>));
 			}
 
@@ -177,7 +180,7 @@ export function Chart({
 				.sort((a, b) => a.time > b.time ? 1 : -1);
 			tickerSeries.series[0].series.setMarkers(markers);
 		});
-	}, [ticker, tickerSeries, aggs, showMarkers]);
+	}, [ticker, tickerSeries, aggs, showMarkers, getVar('--fg')]);
 
 	useEffect(() => {
 		if (!chart) {
