@@ -20,7 +20,8 @@ function debounce(func, timeout = 100){
 export function SymbolPicker({
 	rest,
 	value,
-	onChange: userOnChange
+	onChange: userOnChange,
+	disabled,
 }: SymbolPickerProps) {
 	const [innerValue, setInnerValue] = useState(value);
 	const [items, setItems] = useState([]);
@@ -62,6 +63,7 @@ export function SymbolPicker({
 				onFocus={() => setIsOpen(true)}
 				onBlur={onBlur}
 				onKeyPress={onKeyPress}
+				disabled={disabled}
 				/>
 			{isOpen && (
 				<div class="select-items">
