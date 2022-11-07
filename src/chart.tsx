@@ -156,7 +156,7 @@ export function Chart({
 						time: convertTZ(new Date(s.execution_date), timezone).getTime() / 1000 as UTCTimestamp,
 						position: 'aboveBar',
 						shape: 'arrowDown',
-						text: `${s.split_from} for ${s.split_to} split`,
+						text: `${s.split_to} for ${s.split_from} split`,
 						color: getVar('--fg'),
 
 					} as SeriesMarker<Time>));

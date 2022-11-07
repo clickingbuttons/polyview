@@ -1,5 +1,4 @@
 import { ISeriesApi, CandlestickData, HistogramData, UTCTimestamp, SeriesType, SeriesDataItemTypeMap, LineData } from 'lightweight-charts';
-import { SymbolPicker } from './select';
 import { Aggregate, convertTZ } from './helpers';
 import './seriespicker.css';
 
@@ -132,7 +131,6 @@ export function SeriesPicker({
 	return (
 		<div class="seriesPicker" style={style}>
 			<h2 class="sidepanel-h2">Series Picker</h2>
-			<SymbolPicker value={ss.ticker} onChange={() => {}} disabled={ticker === ss.ticker} rest={rest} />
 			<br />
 			<button onClick={addVWAP}>
 				add vwap

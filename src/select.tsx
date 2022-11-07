@@ -6,7 +6,7 @@ export type SymbolPickerProps = {
 	rest: IRestClient;
 	value: any;
 	onChange: (value: any, ev: any) => void;
-	disabled: Boolean;
+	disabled?: Boolean;
 };
 
 function debounce(func, timeout = 100){
@@ -21,12 +21,14 @@ export function SymbolPicker({
 	rest,
 	value,
 	onChange: userOnChange,
-	disabled,
+	disabled = false,
 }: SymbolPickerProps) {
 	const [innerValue, setInnerValue] = useState(value);
 	const [items, setItems] = useState([]);
 	const [isOpen, setIsOpen] = useState(false);
 	const div = useRef<HTMLDivElement>();
+
+	useEffect(() => setInnerValue(value), [value]);
 
 	function fetchItems(value: string, setItems: StateUpdater<any>) {
 		rest.reference.tickers({ search: value, limit: 100 })
