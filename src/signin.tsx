@@ -2,7 +2,8 @@ import { setCookie } from './cookies';
 import { restClient } from "@polygon.io/client-js";
 import { useState } from 'preact/hooks';
 
-export async function isValidAPIKey(apiKey: string): Promise<Boolean> {
+export async function isValidAPIKey(apiKey?: string): Promise<Boolean> {
+	if (typeof apiKey !== 'string' || apiKey.length === 0) return false;
 	const client = restClient(apiKey);
 	return client.reference.tickerDetails('AAPL')
 		.then(() => true)

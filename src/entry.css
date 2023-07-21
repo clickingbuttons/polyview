@@ -18,7 +18,7 @@
 	--horz-line-color: #363C4E;
 }
 
-html, body, #app {
+html, body, div[id='root'] {
 	height: 100%;
 	background: var(--bg);
 	color: var(--fg);
@@ -35,7 +35,7 @@ html, body, #app {
 	border-color: var(--border-color);
 }
 
-#app {
+div[id='root'] {
 	display: flex;
 	flex-direction: column;
 }

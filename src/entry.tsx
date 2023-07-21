@@ -36,18 +36,16 @@ function Main() {
 		});
 	}, [apiKey]);
 
-	const MyRouter = Router as any;
-	const MyChart = Chart as any;
 	return (
-		<MyRouter history={createHashHistory()}>
+		<Router history={createHashHistory()}>
 			<div path="/">
 				Checking API key
 			</div>
 			<Signin path="/signin" apiKey={apiKey} setAPIKey={setAPIKey} />
-			<MyChart path="/chart/:ticker/:multiplier/:timespan/:date" apiKey={apiKey} />
-		</MyRouter>
+			<Chart path="/chart/:ticker/:multiplier/:timespan/:date" apiKey={apiKey} />
+		</Router>
 	);
 }
 
-render(<Main />, document.getElementById('app'));
+render(<Main />, document.getElementById('root'));
 
