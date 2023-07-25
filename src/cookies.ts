@@ -1,5 +1,5 @@
 export function setCookie(cname: string, cvalue: string) {
-  document.cookie = cname + "=" + cvalue;
+  document.cookie = `${cname}=${cvalue}; max-age=31536000`;
 }
 
 export function getCookie(cname: string) {
