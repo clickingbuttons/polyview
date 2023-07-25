@@ -32,7 +32,7 @@ export function Signin({ path, apiKey, setAPIKey }) {
 			<input type="submit" value="Submit" />
 			<br />
 			<br />
-			<div>This is the only cookie saved on this site. Lasts forever.</div>
+			<div>This is the only cookie saved on this site. Lasts one year.</div>
 			<div>{error}</div>
 		</form>
 	);
